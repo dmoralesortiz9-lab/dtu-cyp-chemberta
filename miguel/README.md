@@ -1,172 +1,145 @@
 # Parte 4 — ChemBERTa-2: aportación de Miguel
 
-Todo lo que hay aquí se construye sobre el `models/chemberta.py` que subió Daniel.
-Nada de esta carpeta pisa archivos de la raíz: para usar el código ampliado hay que
-copiarlo encima (ver más abajo).
-
-## Qué hay
-
-| Carpeta | Contenido |
-|---|---|
-| `models/chemberta.py` | Versión ampliada del modelo: cuatro cambios y dos ajustes nuevos |
-| `conf/model/chemberta.yaml` | Su configuración |
-| `batch.sh`, `batch_lr.sh`, `batch_lr_full.sh`, `batch_seeds.sh`, `batch_grid.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
-| `figuras-informe/` | Las figuras separadas en `cuerpo/` (la que va en el informe) y `apendice/`, con el orden sugerido en `LEEME.md` |
-| `probe_chemberta.py`, `probe_pooling.py` | Comprobaciones sueltas sobre el modelo y el pooling |
-| `figuras/` | Seis figuras, una por pregunta: curvas y contraste juntos, con el $p$ dentro del panel de curvas. PDF, PNG y el script |
-| `informe/` | `parte4-chemberta-resultados.pdf`: el registro completo de experimentos |
-| `resultados/` | Métricas e historiales de las 112 ejecuciones, y `resumen_runs.csv` |
-
-## Cambios respecto a `models/chemberta.py` de la raíz
-
-1. **`add_pooling_layer=False`** al cargar el encoder. Esa capa no viene en los
-   checkpoints, así que nacía al azar, y `forward()` no la usa. Con el arreglo el
-   encoder se cuenta como 3,28 M pesos (los reales) en vez de 3,43 M, y desaparece
-   el aviso `MISSING`.
-2. **`pool()` lanza error** ante un `pooling` desconocido. Antes un error de
-   escritura (`CLS` en mayúsculas) caía en silencio en la media, y habríamos
-   lanzado un experimento creyendo que usaba CLS.
-3. **`pooling: concat`** (nuevo): concatena CLS y media; la cabeza recibe 768 en vez
-   de 384, y el tamaño de entrada se ajusta solo.
-4. **`pretrained`** (nuevo, defecto `true`). Con `false` monta la misma arquitectura
-   con pesos al azar: sirve de *ablation* para medir cuánto aporta el
-   preentrenamiento. No es lo mismo que `freeze_encoder`: `pretrained` fija con qué
-   valores **arranca** el encoder, `freeze_encoder` si esos valores **cambian**.
-5. **`augment`** (nuevo, defecto `false`): aleatorización de SMILES. Renumera los
-   átomos al azar y escribe sin canonizar. Se aplica **solo en entrenamiento**, así
-   que validación y test siguen viendo el SMILES canónico.
-
-Para usarlo:
+Se construye sobre el `models/chemberta.py` que subió Daniel. Nada de esta carpeta
+pisa archivos de la raíz: para usar el código ampliado hay que copiarlo encima.
 
 ```bash
 cp miguel/models/chemberta.py models/
 cp miguel/conf/model/chemberta.yaml conf/model/
 ```
 
-## Resultados principales (validación)
+## Qué hay
 
-Todas las ejecuciones: 20 épocas, `encoder_lr` 1e-5, readout MLP, semilla 42 salvo
-donde se indique. Detalle completo en `informe/` y en `resultados/resumen_runs.csv`.
+| Ruta | Contenido |
+|---|---|
+| `models/chemberta.py` | El modelo ampliado: cuatro arreglos y dos ajustes nuevos |
+| `conf/model/chemberta.yaml` | Su configuración |
+| `figuras/` | Las **6 figuras del apéndice** (PDF + PNG), el script que las genera y `LEEME.md` con el orden en que contarlas |
+| `informe/` | `parte4-chemberta-resultados.pdf`: el registro completo, con las figuras ya integradas |
+| `resultados/` | Configuración, curvas y métricas de las **112 ejecuciones**, y `resumen_runs.csv` con todo en una tabla |
+| `batch*.sh` | Las cinco tandas que se lanzaron, cada una con su porqué en la cabecera |
 
-| Configuración | Regresión (ST-RAE ↓) | Clasificación (MCC ↑) |
-|---|---|---|
-| `mlm_cls` | 0,905 | 0,142 |
-| `mtr_cls` | **0,741** | 0,273 |
-| `mtr_mean` | 0,753 | **0,292** |
-| sin preentrenar + `cls` | 0,982 | 0,000 |
+`resultados/` **no lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni los
+`split.csv`, idénticos en todas. Con lo que hay se regeneran las figuras y se
+comprueba cualquier número del informe.
 
-- **MTR gana a MLM** en las dos tareas y con los tres *pooling*. Con 3 semillas:
-  ventaja de 0,181 en regresión ($p<0{,}001$) y 0,144 en clasificación ($p=0{,}001$).
-- **Sin preentrenar no aprende nada**: 0,982 es exactamente predecir la media
-  (0,983), y 0,000 es decir «no» a todo.
-- **`cls` gana a `mean`** con MTR: 0,068 en clasificación ($p=0{,}032$) y 0,018 en
-  regresión ($p=0{,}070$). *Corrige una conclusión anterior:* con una sola semilla
-  parecían empatar, porque la semilla 42 le dio a `mtr_mean` un 0,292 en
-  clasificación que resultó ser su mejor tirada de tres (media real 0,224).
-- **Los dos factores interactúan, y está medido.** Con la rejilla 2×2 completa a
-  3 semillas, el efecto del pooling **cambia de signo** según el checkpoint:
+## Resultado final
 
-  | | con MTR | con MLM |
-  |---|---|---|
-  | CLS vs mean (regresión) | +0,018 | **−0,096** ($p=0{,}008$) |
-  | CLS vs mean (clasificación) | +0,068 ($p=0{,}032$) | **−0,046** ($p=0{,}062$) |
-
-  Por eso se cruzaron en vez de fijar uno: con `pooling=cls` la diferencia entre
-  checkpoints sale +0,181, y con la media +0,067. La primera mezcla el efecto del
-  checkpoint con el perjuicio de usar un token que MLM nunca entrenó.
-
-Se descartaron, con medidas: la aleatorización de SMILES (3 semillas y 60 épocas,
-sin efecto), elegir el umbral del MCC (ninguna regla supera al 0,5 fijo) y `concat`
-(empata y duplica la cabeza).
-
-## El learning rate: medido y cerrado
-
-Daniel encontró que `encoder_lr` 1e-5 infraentrena, con una curva en U cuyo mínimo
-está en 1e-4: con el checkpoint **MLM** ese cambio vale 0,071. Como todas las
-ejecuciones de aquí usaban 1e-5, quedaba la duda de si la rejilla de
-checkpoint × pooling estaba hecha sobre un valor malo.
-
-**Se midió sobre MTR (10 ejecuciones, `batch_lr.sh`) y no se traslada.** Validación,
-MTR + cls sin congelar:
-
-Seis valores, tres semillas cada uno ($p$ del contraste de Welch contra 1e-5; con
-5 comparaciones el umbral honesto es el de Bonferroni, 0,01):
-
-| `encoder_lr` | Regresión (ST-RAE ↓) | $p$ | Clasificación (MCC ↑) | $p$ |
-|---|---|---|---|---|
-| 1e-6 | 0,735 ± 0,005 | 0,60 | 0,285 ± 0,016 | 0,67 |
-| **1e-5** *(elegido)* | **0,732 ± 0,006** | — | **0,292 ± 0,021** | — |
-| 3e-5 | 0,729 ± 0,005 | 0,54 | 0,292 ± 0,035 | 1,00 |
-| 1e-4 *(el de Daniel)* | 0,728 ± 0,005 | 0,40 | 0,285 ± 0,012 | 0,65 |
-| 3e-4 | 0,730 ± 0,018 | 0,83 | 0,278 ± 0,014 | 0,40 |
-| **1e-3** | **0,782 ± 0,014** | **0,014** | **0,248 ± 0,004** | 0,065 |
-
-- **Con MTR el learning rate no cambia nada en tres órdenes de magnitud**: de 1e-6
-  a 3e-4, cinco contrastes con $p$ entre 0,40 y 1,00 y todas las medias dentro de
-  ±0,007. No hay curva en U, hay una **meseta plana**.
-- **Y sí se rompe al salirse**, que es lo que demuestra que la meseta es real y no
-  falta de resolución: en 1e-3 la regresión empeora 0,050, diez veces la desviación
-  entre semillas. *Matiz honesto:* las tres semillas de 1e-3 quedan fuera del rango
-  de la referencia sin solape (0,773–0,798 frente a 0,727–0,739), pero con $n=3$ el
-  contraste no alcanza el umbral corregido ($p = 0{,}014$ frente a 0,01). El efecto
-  está; lo que falta es potencia estadística.
-- **La sensibilidad depende del checkpoint**, así que un barrido hecho sobre MLM no
-  vale para MTR. Encaja con lo del punto 1: la cabeza de preentrenamiento del MTR
-  leía el token CLS, así que el cuerpo llega con un resumen que ya sirve y apenas
-  necesita moverse; el de MLM nunca entrenó ese token y tiene que recorrer mucho
-  más camino, y ahí sí importa a qué velocidad.
-- **La configuración elegida no cambia**, y la objeción queda cerrada con medidas.
-
-## Veredicto (test, evaluado una sola vez)
+**Test, evaluado una sola vez**, con la configuración cerrada por validación:
 
 | Modelo | Regresión (ST-RAE ↓) | Clasificación (MCC ↑) |
 |---|---|---|
 | Morgan MLP | 0,864 | — |
 | LightGBM | 0,783 | 0,141 |
-| **ChemBERTa** | **0,778** | **0,183** |
+| **ChemBERTa** (3 semillas) | **0,778 ± 0,010** | **0,183 ± 0,019** |
 | Atom-JEPA | **0,739** | **0,231** |
 
-**ChemBERTa queda en medio, y de forma consistente en las dos tareas.** Gana al
-baseline en ambas (en clasificación por un 30 % sobre LightGBM), y pierde contra
-Atom-JEPA en ambas. En regresión la ventaja sobre LightGBM es de 0,005, dentro del
-ruido, así que lo honesto es decir que **empata** con el baseline y pierde contra
-Atom-JEPA.
+**ChemBERTa queda en medio, consistentemente en las dos tareas.** Gana al
+*baseline* en ambas —en clasificación por un 30 % sobre LightGBM— y pierde contra
+Atom-JEPA en ambas. En regresión la ventaja sobre LightGBM (0,005) está dentro del
+ruido, así que lo honesto es decir que **empata** con el *baseline*.
 
 Leer la molécula como texto basta para igualar a unas *features* hechas a mano y
 para mejorarlas bastante en la tarea difícil, pero **no sustituye a ver la
 geometría en 3D**.
 
-De todo lo que se barrió —pooling, congelación, aleatorización, umbral, épocas,
-learning rate— **las únicas decisiones con un efecto mayor que el ruido fueron el
-checkpoint (MLM frente a MTR, en las dos tareas) y el pooling (`cls` frente a
-`mean`, en clasificación)**. Las demás se midieron con 3 semillas y quedan dentro
-de la variación entre semillas: ver `figuras-informe/cuerpo/fig7_contrasts.pdf`,
-que resume los cinco contrastes con su intervalo de confianza.
+### Configuración elegida
+
+```
+checkpoint = DeepChem/ChemBERTa-77M-MTR   pooling = cls      freeze_encoder = false
+augment = false                           epochs = 20        encoder_lr = 1e-5
+```
+
+Elegida **solo con validación**: 0,732 ± 0,006 en regresión y 0,292 ± 0,021 en
+clasificación.
+
+## Lo que se midió, y lo que resultó importar
+
+Cada contraste con 3 semillas por lado, *t* de Welch sobre validación.
+
+| Decisión | Efecto | ¿Importa? |
+|---|---|---|
+| **Checkpoint: MTR vs MLM** | +0,181 reg., +0,144 clas. | **Sí** (*p* < 0,001 y 0,001) |
+| **Pooling: CLS vs mean** (con MTR) | +0,018 reg., +0,068 clas. | **Sí en clasificación** (*p* = 0,032) |
+| Congelar el cuerpo | +0,007 reg., +0,015 clas. | No (*p* = 0,21 y 0,40) — y cuesta 5× menos |
+| Aleatorizar SMILES | +0,008 reg., +0,017 clas. | No (*p* = 0,13 y 0,30) |
+| *Learning rate* 1e-6 … 3e-4 | dentro de ±0,007 | No (*p* entre 0,40 y 1,00) |
+| Umbral del MCC (max-MCC, Youden) | — | No supera al 0,5 fijo |
+
+**De todo lo que se barrió, lo único que hay que acertar es el *checkpoint*.** No
+porque lo demás no importe nunca, sino porque **aquí se midió y no importó**.
+
+### Por qué MTR gana, y por qué eso predice lo del pooling
+
+La cabeza de preentrenamiento del MTR es `dense` 384→384 + `out_proj` 384→199: el
+patrón de una cabeza que lee **únicamente el token CLS**. Como ese era el único
+vector que se leía para predecir los 199 descriptores de RDKit, el cuerpo quedó
+obligado a escribir ahí un resumen de la molécula. En MLM la tarea leía el vector
+*de cada posición tapada*, así que **el CLS no se usó nunca**.
+
+Eso predice que con MTR el CLS debería ganar a promediar, y con MLM perder. Y es
+lo que sale:
+
+| | con MTR | con MLM |
+|---|---|---|
+| CLS vs mean (regresión) | +0,018 | **−0,096** (*p* = 0,008) |
+| CLS vs mean (clasificación) | +0,068 (*p* = 0,032) | **−0,046** (*p* = 0,062) |
+
+**El efecto del pooling cambia de signo según el checkpoint**, la misma inversión
+en las dos tareas. Por eso los dos factores se cruzaron en vez de fijar uno: con
+`pooling=cls` la diferencia entre checkpoints sale +0,181 y con la media +0,067;
+la primera mezclaría el efecto del checkpoint con el perjuicio de usar un token
+que MLM nunca entrenó.
+
+### Dos sustos por medir con una sola semilla
+
+1. **Los pooling parecían empatar.** Con la semilla 42, `mtr_mean` dio 0,292 en
+   clasificación, el valor más alto de la primera tabla. Con 3 semillas su media
+   real es 0,224 y aquel 0,292 era su mejor tirada de tres. Era ruido.
+2. **Congelar parecía ganar** en clasificación con el *learning rate* de partida.
+   Repetido con 3 semillas, no.
+
+Por eso todo lo que se afirma aquí va con 3 semillas y su *p*.
+
+## Cambios respecto a `models/chemberta.py` de la raíz
+
+1. **`add_pooling_layer=False`** al cargar el encoder. Esa capa no viene en los
+   checkpoints, así que nacía al azar, y `forward()` no la usa. El encoder pasa a
+   contarse como 3,28 M pesos (los reales) en vez de 3,43 M, y desaparece el aviso
+   `MISSING`.
+2. **`pool()` lanza error** ante un `pooling` desconocido. Antes un error de
+   escritura (`CLS` en mayúsculas) caía en silencio en la media.
+3. **`pooling: concat`** (nuevo): concatena CLS y media; la cabeza recibe 768.
+4. **`pretrained`** (nuevo, defecto `true`). Con `false`, misma arquitectura con
+   pesos al azar: el *ablation* del preentrenamiento. Sin él el modelo no aprende
+   nada (0,982 en regresión, que es predecir la media, y MCC 0,000).
+   No es lo mismo que `freeze_encoder`: `pretrained` fija con qué valores
+   **arranca** el encoder, `freeze_encoder` si esos valores **cambian**.
+5. **`augment`** (nuevo, defecto `false`): aleatorización de SMILES, aplicada
+   **solo en entrenamiento**, así que validación y test ven el SMILES canónico.
+
+## Notas de método
+
+- **La semilla de entrenamiento no es la del reparto.** El reparto sigue siendo el
+  de la semilla 42; las 112 ejecuciones comparten el mismo `split_sha256`.
+- **Con 3 semillas solo se detectan efectos grandes.** Que salga *p* = 0,21 no
+  prueba que no haya diferencia: prueba que, si la hay, es menor que la variación
+  entre semillas.
+- **Comparaciones múltiples:** el barrido del *learning rate* son 5 contrastes
+  contra la misma referencia, así que allí el umbral es Bonferroni
+  0,05/5 = 0,01.
+- **Dar a cada ejecución su `hydra.run.dir` con nombre.** Por defecto la carpeta
+  es la fecha con segundos, y dos trabajos que arranquen en el mismo segundo
+  comparten carpeta y se pisan.
+- **La cola es el cuello de botella, no el cálculo.** De ahí los `batch*.sh`, que
+  agrupan varias ejecuciones en un solo trabajo.
 
 ## Pendiente para el informe del grupo
 
-**Hay que fijar un solo baseline de referencia.** El informe de Daniel compara con
-Morgan MLP (0,843 en validación) y este con LightGBM (0,740). Son modelos distintos
-y el enunciado pide elegir uno.
+**Hay que fijar un solo *baseline* de referencia.** El informe de Daniel compara
+con Morgan MLP (0,843 en validación) y este con LightGBM (0,740). El enunciado
+pide elegir **uno** de los cuatro.
 
-## Figuras
-
-Las imágenes **no llevan pie dentro**: el pie va en `figuras/figuras.tex`, listo
-para `\caption{}`, de modo que LaTeX las numere y el texto pueda citarlas con
-`\ref{}`. Los títulos de los paneles dicen qué se representa, no qué concluimos.
-
-Para regenerarlas hace falta `runs/` completo en la raíz del repo:
-
-```bash
-python miguel/figuras/hacer_figuras.py
-```
-
-## Resultados guardados
-
-`resultados/` lleva, por ejecución, `config.json`, `history.jsonl` y las métricas de
-validación y test. **No lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni los
-`split.csv`, que son idénticos en todas. Con lo que hay se regeneran las figuras y
-se comprueba cualquier número del informe.
-
-`resultados/resumen_runs.csv` tiene las 112 ejecuciones en una tabla, con su
-configuración y sus notas de validación y test.
+Y recordar que la tabla de la parte 5 compara *«final validation-selected
+configurations»*: LightGBM y Atom-JEPA están aquí con sus ajustes **por defecto**,
+así que sus cifras subirán cuando cada uno optimice el suyo.

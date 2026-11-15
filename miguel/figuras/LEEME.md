@@ -1,18 +1,12 @@
 # Figuras para el informe (Parte 4 — ChemBERTa-2)
 
 Una figura por pregunta, en el orden en que se cuentan. Todas en PDF (vectorial,
-para LaTeX) y PNG (para mirarlas). **Ninguna lleva pie dentro de la imagen**: los
-pies están en `../parte4-chemberta-resultados.tex`, listos para `\caption{}`.
+para LaTeX) y PNG (para mirarlas en GitHub, que no previsualiza PDF). **Ninguna
+lleva pie dentro de la imagen**: los pies están en
+`../informe/parte4-chemberta-resultados.tex`, listos para `\caption{}`.
 
-```
-cuerpo/     la figura que iría en el informe si cabe alguna
-apendice/   las cinco restantes
-```
-
-**Ojo con el límite:** las diapositivas de la semana 1 dicen *«Report: max 4 page
-+ reference and code»*. **No mencionan apéndice.** Conviene preguntar a los
-supervisores si se permite; si no, la salida segura es dejar las figuras en el
-repositorio (que sí cuenta como «código») y citarlas desde el texto.
+Las seis van al **apéndice** del informe; el cuerpo (máx. 4 páginas) no lleva
+ninguna.
 
 ## El orden en que contarlo
 
@@ -75,7 +69,7 @@ este experimento puede ver.
 
 ```latex
 \usepackage{graphicx}
-\graphicspath{{figuras-informe/cuerpo/}{figuras-informe/apendice/}}
+\graphicspath{{figuras/}}
 ...
 El efecto del pooling se invierte según el checkpoint (Fig.~\ref{fig:grid}).
 Ninguna de las decisiones de entrenamiento supera la variación entre semillas
@@ -89,4 +83,4 @@ cd dtu-cyp-project
 python ../figuras/hacer_figuras.py      # escribe en ../figuras/
 ```
 
-Lee `runs/`. Luego se copian a estas dos carpetas.
+Lee `runs/`, así que hace falta tenerlo en la raíz del repo.
