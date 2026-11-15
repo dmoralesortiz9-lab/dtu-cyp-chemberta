@@ -226,14 +226,41 @@ def one_factor(stem, series, contrasts, figsize=(6.6, 4.6), ncol=2, loc='lower r
 
 # --- 1. checkpoint x pooling ------------------------------------------------
 def fig_grid():
-    one_factor('fig1_checkpoint_pooling',
-               [(REFERENCE, 'MTR + CLS'), ('mtr_mean', 'MTR + mean'),
-                ('mlm_cls', 'MLM + CLS'), ('mlm_mean', 'MLM + mean')],
-               [('MTR vs MLM\n(with CLS)', REFERENCE, 'mlm_cls'),
-                ('MTR vs MLM\n(with mean)', 'mtr_mean', 'mlm_mean'),
-                ('CLS vs mean\n(with MTR)', REFERENCE, 'mtr_mean'),
-                ('CLS vs mean\n(with MLM)', 'mlm_cls', 'mlm_mean')],
-               figsize=(6.6, 5.2), ncol=4)
+    """Four series, so the legend goes INSIDE the curve panel in two columns.
+
+    A four-item legend on top of a 2x2 grid took as much height as the data.
+    The p-values are not repeated here either: they sit in the panel next door.
+    """
+    series = [(REFERENCE, 'MTR + CLS'), ('mtr_mean', 'MTR + mean'),
+              ('mlm_cls', 'MLM + CLS'), ('mlm_mean', 'MLM + mean')]
+    contrasts = [('MTR vs MLM\n(with CLS)', REFERENCE, 'mlm_cls'),
+                 ('MTR vs MLM\n(with mean)', 'mtr_mean', 'mlm_mean'),
+                 ('CLS vs mean\n(with MTR)', REFERENCE, 'mtr_mean'),
+                 ('CLS vs mean\n(with MLM)', 'mlm_cls', 'mlm_mean')]
+    fig, axes = plt.subplots(2, 2, figsize=(6.6, 4.2))
+    for row, (task, key, lab) in enumerate(TASKS):
+        for (name, nom), col, ls in zip(series, (C1, C2, C3, C4), DASH):
+            c = seed_curves(task, name, key)
+            if c is not None:
+                band(axes[row, 0], c[0], c[1], col, ls, nom)
+        frame(axes[row, 0], 'Epoch', f'Validation {lab}',
+              'Regression' if task == 'regression' else 'Classification')
+        rows = [(nom, *contrast(task, key, a, b))
+                for nom, a, b in contrasts if contrast(task, key, a, b)]
+        if rows:
+            forest(axes[row, 1], rows, f'Advantage ({lab.split(" $")[0]})')
+            axes[row, 1].set_title('Regression' if task == 'regression'
+                                   else 'Classification', loc='left', color=INK)
+    # Regression curves rise, classification curves rise then flatten: the free
+    # corner is the lower right in both.
+    for row in (0, 1):
+        axes[row, 0].legend(loc='lower right', ncol=2, fontsize=7.4,
+                            handlelength=1.6, columnspacing=1.0, labelspacing=0.3,
+                            borderpad=0.4, framealpha=1, facecolor=SURFACE,
+                            edgecolor=GRID, frameon=True)
+    panel_tags(axes)
+    fig.tight_layout()
+    save(fig, 'fig1_checkpoint_pooling')
 
 
 # --- 2. learning rate -------------------------------------------------------
