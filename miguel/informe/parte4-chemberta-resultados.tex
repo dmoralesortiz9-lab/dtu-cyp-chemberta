@@ -234,26 +234,36 @@ posibles (si hacía falta que el cuerpo aprendiera, y si hacían falta más épo
 {Por qué: todas las ejecuciones anteriores usan \var{encoder\_lr} 1e-5, heredado de \var{atom\_jepa.yaml}. El barrido de Daniel sobre el checkpoint \textbf{MLM} muestra que ese valor infraentrena, con una curva en U cuyo mínimo está en 1e-4: pasar de uno a otro le mejoró de 0.900 a 0.829. Si eso valiera también para MTR, toda la rejilla del experimento~A estaría hecha con un valor subóptimo y las conclusiones podrían moverse. El óptimo puede depender del checkpoint, así que se vuelve a medir sobre MTR. 1e-4 va con \textbf{3 semillas} porque es la comparación que decide; 3e-5 y 3e-4 con una, solo para ver la forma de la curva.}
 
 \begin{center}
-\begin{tabular}{lcc}
+\begin{tabular}{lcccc}
 \toprule
-\var{encoder\_lr} & Regresión (ST-RAE$\downarrow$) & Clasificación (MCC$\uparrow$) \\ \midrule
-3e-5 \emph{(1 semilla)} & 0.726 & 0.253 \\
-\textbf{1e-5} \emph{(de partida, 3 semillas)} & \textbf{0.732 $\pm$ 0.006} & \textbf{0.292 $\pm$ 0.021} \\
-\textbf{1e-4} \emph{(el de Daniel, 3 semillas)} & \textbf{0.728 $\pm$ 0.005} & \textbf{0.285 $\pm$ 0.012} \\
-3e-4 \emph{(1 semilla)} & 0.731 & 0.263 \\
+& \multicolumn{2}{c}{Regresión (ST-RAE$\downarrow$)} & \multicolumn{2}{c}{Clasificación (MCC$\uparrow$)} \\
+\cmidrule(r){2-3}\cmidrule(l){4-5}
+\var{encoder\_lr} & media $\pm$ desv. & $p$ & media $\pm$ desv. & $p$ \\ \midrule
+1e-6 & 0.735 $\pm$ 0.005 & 0.60 & 0.285 $\pm$ 0.016 & 0.67 \\
+\textbf{1e-5} \emph{(elegido)} & \textbf{0.732 $\pm$ 0.006} & --- & \textbf{0.292 $\pm$ 0.021} & --- \\
+3e-5 & 0.729 $\pm$ 0.005 & 0.54 & 0.292 $\pm$ 0.035 & 1.00 \\
+1e-4 \emph{(el de Daniel)} & 0.728 $\pm$ 0.005 & 0.40 & 0.285 $\pm$ 0.012 & 0.65 \\
+3e-4 & 0.730 $\pm$ 0.018 & 0.83 & 0.278 $\pm$ 0.014 & 0.40 \\
+\textbf{1e-3} & \textbf{0.782 $\pm$ 0.014} & \textbf{0.014} & \textbf{0.248 $\pm$ 0.004} & 0.065 \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\noindent Contraste 1e-4 frente a 1e-5 ($t$ de Welch, $n=3$): $p=0.39$ en regresión y $p=0.63$ en
-clasificación. La diferencia vale 0.7 veces el ruido entre semillas en regresión y 0.3 veces en
-clasificación.
+\noindent Todo con 3 semillas; $p$ del contraste de Welch contra 1e-5. Como son \textbf{5
+comparaciones} contra la misma referencia, el umbral honesto es el de Bonferroni,
+$0.05/5 = \mathbf{0.01}$, no 0.05.
 
 \begin{concl}
 \begin{itemize}
-  \item \textbf{Con MTR el \emph{learning rate} no cambia nada.} Los cuatro valores caen entre 0.726 y
-        0.732 en regresión, un margen más estrecho que lo que varía solo con cambiar la semilla. No
-        hay curva en U: el fondo es plano. En clasificación el mejor es directamente el de partida.
+  \item \textbf{Con MTR el \emph{learning rate} no cambia nada en tres órdenes de magnitud.} De 1e-6 a
+        3e-4, cinco valores con $p$ entre 0.40 y 1.00 y todas las medias dentro de $\pm$0.007. No hay
+        curva en U: hay una \textbf{meseta plana}.
+  \item \textbf{Y sí se rompe al salirse, que es lo que demuestra que la meseta es real} y no falta de
+        resolución: en 1e-3 la regresión empeora 0.050, diez veces la desviación entre semillas.
+        \textbf{Matiz honesto:} las tres semillas de 1e-3 quedan fuera del rango de las tres de
+        referencia (0.773--0.798 frente a 0.727--0.739), sin solape, pero con $n=3$ el contraste no
+        alcanza el umbral corregido ($p=0.014$ frente a 0.01). \textbf{El efecto está; lo que falta es
+        potencia estadística}, y conviene decirlo así en vez de forzar el $p$.
   \item \textbf{Es lo contrario de lo que ocurre con MLM}, donde el mismo cambio vale 0.071. La
         sensibilidad al \emph{learning rate} \textbf{depende del checkpoint}, así que un barrido hecho
         sobre uno no se puede trasladar al otro.
@@ -456,6 +466,19 @@ regeneran con \var{figuras/hacer\_figuras.py}, que lee \var{runs/}.
   dentro de la variación entre semillas: \textbf{no es que no se exploraran, es que se midieron y no
   cambian nada}.}
   \label{fig:contrasts}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig8_lr_curve.pdf}
+  \caption{\textbf{Curva del \emph{learning rate} del cuerpo} (experimento~F; MTR + CLS, sin
+  congelar), tres semillas por punto. Línea: media; banda: $\pm$1 desviación; banda vertical clara:
+  la meseta donde el resultado no cambia; círculo negro: el valor elegido. El eje horizontal es
+  logarítmico. Entre 1e-6 y 3e-4 las medias caen dentro de $\pm$0.007 y ningún contraste se acerca al
+  umbral, mientras que en 1e-3 el entrenamiento se degrada en las dos tareas. El barrido cubre tres
+  órdenes de magnitud y llega hasta romper el modelo, que es lo que muestra que la meseta es un
+  resultado y no falta de resolución.}
+  \label{fig:lrcurve}
 \end{figure}
 
 \begin{figure}[htbp]

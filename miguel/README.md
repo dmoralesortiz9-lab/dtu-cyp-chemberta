@@ -10,12 +10,12 @@ copiarlo encima (ver más abajo).
 |---|---|
 | `models/chemberta.py` | Versión ampliada del modelo: cuatro cambios y dos ajustes nuevos |
 | `conf/model/chemberta.yaml` | Su configuración |
-| `batch.sh`, `batch_lr.sh`, `batch_seeds.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
+| `batch.sh`, `batch_lr.sh`, `batch_lr_full.sh`, `batch_seeds.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
 | `figuras-informe/` | Las figuras separadas en `cuerpo/` (la que va en el informe) y `apendice/`, con el orden sugerido en `LEEME.md` |
 | `probe_chemberta.py`, `probe_pooling.py` | Comprobaciones sueltas sobre el modelo y el pooling |
 | `figuras/` | Seis figuras para el informe, en PDF y PNG, con el script que las genera |
 | `informe/` | `parte4-chemberta-resultados.pdf`: el registro completo de experimentos |
-| `resultados/` | Métricas e historiales de las 86 ejecuciones, y `resumen_runs.csv` |
+| `resultados/` | Métricas e historiales de las 106 ejecuciones, y `resumen_runs.csv` |
 
 ## Cambios respecto a `models/chemberta.py` de la raíz
 
@@ -78,16 +78,27 @@ checkpoint × pooling estaba hecha sobre un valor malo.
 **Se midió sobre MTR (10 ejecuciones, `batch_lr.sh`) y no se traslada.** Validación,
 MTR + cls sin congelar:
 
-| `encoder_lr` | Regresión (ST-RAE ↓) | Clasificación (MCC ↑) |
-|---|---|---|
-| 3e-5 *(1 semilla)* | 0,726 | 0,253 |
-| **1e-5** *(de partida, 3 semillas)* | **0,732 ± 0,006** | **0,292 ± 0,021** |
-| **1e-4** *(el de Daniel, 3 semillas)* | **0,728 ± 0,005** | **0,285 ± 0,012** |
-| 3e-4 *(1 semilla)* | 0,731 | 0,263 |
+Seis valores, tres semillas cada uno ($p$ del contraste de Welch contra 1e-5; con
+5 comparaciones el umbral honesto es el de Bonferroni, 0,01):
 
-- **Con MTR el learning rate no cambia nada** ($p = 0{,}39$ y $0{,}63$). Los cuatro
-  valores caen entre 0,726 y 0,732 en regresión: el fondo es plano, no hay curva
-  en U. En clasificación el mejor es directamente el de partida.
+| `encoder_lr` | Regresión (ST-RAE ↓) | $p$ | Clasificación (MCC ↑) | $p$ |
+|---|---|---|---|---|
+| 1e-6 | 0,735 ± 0,005 | 0,60 | 0,285 ± 0,016 | 0,67 |
+| **1e-5** *(elegido)* | **0,732 ± 0,006** | — | **0,292 ± 0,021** | — |
+| 3e-5 | 0,729 ± 0,005 | 0,54 | 0,292 ± 0,035 | 1,00 |
+| 1e-4 *(el de Daniel)* | 0,728 ± 0,005 | 0,40 | 0,285 ± 0,012 | 0,65 |
+| 3e-4 | 0,730 ± 0,018 | 0,83 | 0,278 ± 0,014 | 0,40 |
+| **1e-3** | **0,782 ± 0,014** | **0,014** | **0,248 ± 0,004** | 0,065 |
+
+- **Con MTR el learning rate no cambia nada en tres órdenes de magnitud**: de 1e-6
+  a 3e-4, cinco contrastes con $p$ entre 0,40 y 1,00 y todas las medias dentro de
+  ±0,007. No hay curva en U, hay una **meseta plana**.
+- **Y sí se rompe al salirse**, que es lo que demuestra que la meseta es real y no
+  falta de resolución: en 1e-3 la regresión empeora 0,050, diez veces la desviación
+  entre semillas. *Matiz honesto:* las tres semillas de 1e-3 quedan fuera del rango
+  de la referencia sin solape (0,773–0,798 frente a 0,727–0,739), pero con $n=3$ el
+  contraste no alcanza el umbral corregido ($p = 0{,}014$ frente a 0,01). El efecto
+  está; lo que falta es potencia estadística.
 - **La sensibilidad depende del checkpoint**, así que un barrido hecho sobre MLM no
   vale para MTR. Encaja con lo del punto 1: la cabeza de preentrenamiento del MTR
   leía el token CLS, así que el cuerpo llega con un resumen que ya sirve y apenas
@@ -146,5 +157,5 @@ validación y test. **No lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni lo
 `split.csv`, que son idénticos en todas. Con lo que hay se regeneran las figuras y
 se comprueba cualquier número del informe.
 
-`resultados/resumen_runs.csv` tiene las 86 ejecuciones en una tabla, con su
+`resultados/resumen_runs.csv` tiene las 106 ejecuciones en una tabla, con su
 configuración y sus notas de validación y test.

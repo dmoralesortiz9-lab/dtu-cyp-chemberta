@@ -357,8 +357,41 @@ def fig_contrasts():
     save(fig, 'fig7_contrasts')
 
 
+# --- 8. learning-rate curve, three seeds per point --------------------------
+LR_POINTS = [('1e-6', 1e-6), ('1e-5', 1e-5), ('3e-5', 3e-5),
+             ('1e-4', 1e-4), ('3e-4', 3e-4), ('1e-3', 1e-3)]
+PLATEAU = (1e-6, 3e-4)          # where the curve is flat, highlighted as a band
+
+
+def fig_lr_curve():
+    fig, axes = plt.subplots(1, 2, figsize=(6.6, 2.8))
+    for ax, (task, key, lab) in zip(axes, TASKS):
+        xs, ms, sds = [], [], []
+        for tag, x in LR_POINTS:
+            name = REFERENCE if tag == '1e-5' else f'mtr_cls_lr{tag}'
+            v = seeds(task, name, key)
+            if v is None:
+                continue
+            xs.append(x); ms.append(v.mean()); sds.append(v.std(ddof=1))
+        xs, ms, sds = np.array(xs), np.array(ms), np.array(sds)
+        ax.axvspan(*PLATEAU, color=C1, alpha=0.07, lw=0, zorder=0)
+        ax.fill_between(xs, ms - sds, ms + sds, color=C1, alpha=0.18, lw=0, zorder=1)
+        ax.plot(xs, ms, color=C1, marker='o', ms=4.5, mec=SURFACE, mew=1.1, zorder=3)
+        # The selected value, ringed so it reads without relying on colour.
+        ax.plot([1e-5], [ms[list(xs).index(1e-5)]], 'o', ms=9, mfc='none',
+                mec=INK, mew=1.2, zorder=4)
+        ax.set_xscale('log')
+        ax.set_xticks([p[1] for p in LR_POINTS], [p[0] for p in LR_POINTS], rotation=45)
+        ax.minorticks_off()
+        frame(ax, 'Encoder learning rate', f'Validation {lab}',
+              'Regression' if task == 'regression' else 'Classification')
+    panel_tags(axes)
+    fig.tight_layout()
+    save(fig, 'fig8_lr_curve')
+
+
 if __name__ == '__main__':
     print('Figures written to', OUT)
     fig_pretraining(); fig_pooling(); fig_frozen()
     fig_augmentation(); fig_val_test(); fig_per_enzyme()
-    fig_contrasts()
+    fig_contrasts(); fig_lr_curve()
