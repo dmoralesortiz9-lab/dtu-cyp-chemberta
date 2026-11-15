@@ -14,6 +14,9 @@ regression,chemberta,froz_mtr_cls_noaug_s3,MTR,True,cls,1e-05,0.001,True,False,2
 regression,chemberta,froz_mtr_concat,MTR,True,concat,1e-05,0.001,True,,20,42,macro_ST-RAE,0.7383,0.7543
 regression,chemberta,froz_mtr_mean,MTR,True,mean,1e-05,0.001,True,,20,42,macro_ST-RAE,0.7545,0.7881
 regression,chemberta,mlm_cls,MLM,True,cls,1e-05,0.001,False,,20,42,macro_ST-RAE,0.9047,0.9095
+regression,chemberta,mlm_cls_s1,MLM,True,cls,1e-05,0.001,False,False,20,1,macro_ST-RAE,0.9156,0.9454
+regression,chemberta,mlm_cls_s2,MLM,True,cls,1e-05,0.001,False,False,20,2,macro_ST-RAE,0.9087,0.9168
+regression,chemberta,mlm_cls_s3,MLM,True,cls,1e-05,0.001,False,False,20,3,macro_ST-RAE,0.9169,0.919
 regression,chemberta,mlm_concat,MLM,True,concat,1e-05,0.001,False,,20,42,macro_ST-RAE,0.8204,0.8431
 regression,chemberta,mlm_mean,MLM,True,mean,1e-05,0.001,False,,20,42,macro_ST-RAE,0.8326,0.8486
 regression,chemberta,mtr_cls,MTR,True,cls,1e-05,0.001,False,,20,42,macro_ST-RAE,0.7414,0.7839
@@ -30,6 +33,9 @@ regression,chemberta,mtr_cls_noaug_s2,MTR,True,cls,1e-05,0.001,False,False,20,2,
 regression,chemberta,mtr_cls_noaug_s3,MTR,True,cls,1e-05,0.001,False,False,20,3,macro_ST-RAE,0.7272,0.7676
 regression,chemberta,mtr_concat,MTR,True,concat,1e-05,0.001,False,,20,42,macro_ST-RAE,0.7414,0.7872
 regression,chemberta,mtr_mean,MTR,True,mean,1e-05,0.001,False,,20,42,macro_ST-RAE,0.7534,0.8095
+regression,chemberta,mtr_mean_s1,MTR,True,mean,1e-05,0.001,False,False,20,1,macro_ST-RAE,0.7587,0.7878
+regression,chemberta,mtr_mean_s2,MTR,True,mean,1e-05,0.001,False,False,20,2,macro_ST-RAE,0.7525,0.7922
+regression,chemberta,mtr_mean_s3,MTR,True,mean,1e-05,0.001,False,False,20,3,macro_ST-RAE,0.7393,0.7744
 regression,chemberta,rand_cls,MLM,False,cls,1e-05,0.001,False,,20,42,macro_ST-RAE,0.9818,0.9977
 regression,chemberta,rand_mean,MLM,False,mean,1e-05,0.001,False,,20,42,macro_ST-RAE,0.8167,0.8814
 regression,morgan_mlp,2026-11-03_20-39-23,,,,,0.001,,,100,42,macro_ST-RAE,0.8459,0.8642
@@ -48,6 +54,9 @@ classification,chemberta,froz_mtr_cls_noaug_s3,MTR,True,cls,1e-05,0.001,True,Fal
 classification,chemberta,froz_mtr_concat,MTR,True,concat,1e-05,0.001,True,,20,42,macro_MCC,0.2581,0.1311
 classification,chemberta,froz_mtr_mean,MTR,True,mean,1e-05,0.001,True,,20,42,macro_MCC,0.1471,0.071
 classification,chemberta,mlm_cls,MLM,True,cls,1e-05,0.001,False,,20,42,macro_MCC,0.1425,0.004
+classification,chemberta,mlm_cls_s1,MLM,True,cls,1e-05,0.001,False,False,20,1,macro_MCC,0.1291,0.1402
+classification,chemberta,mlm_cls_s2,MLM,True,cls,1e-05,0.001,False,False,20,2,macro_MCC,0.1418,0.0555
+classification,chemberta,mlm_cls_s3,MLM,True,cls,1e-05,0.001,False,False,20,3,macro_MCC,0.1727,0.0903
 classification,chemberta,mlm_concat,MLM,True,concat,1e-05,0.001,False,,20,42,macro_MCC,0.1492,0.0612
 classification,chemberta,mlm_mean,MLM,True,mean,1e-05,0.001,False,,20,42,macro_MCC,0.1196,0.1317
 classification,chemberta,mtr_cls,MTR,True,cls,1e-05,0.001,False,,20,42,macro_MCC,0.2729,0.1645
@@ -70,6 +79,9 @@ classification,chemberta,mtr_cls_noaug_s2,MTR,True,cls,1e-05,0.001,False,False,2
 classification,chemberta,mtr_cls_noaug_s3,MTR,True,cls,1e-05,0.001,False,False,20,3,macro_MCC,0.2946,0.1835
 classification,chemberta,mtr_concat,MTR,True,concat,1e-05,0.001,False,,20,42,macro_MCC,0.2837,0.1692
 classification,chemberta,mtr_mean,MTR,True,mean,1e-05,0.001,False,,20,42,macro_MCC,0.2921,0.0748
+classification,chemberta,mtr_mean_s1,MTR,True,mean,1e-05,0.001,False,False,20,1,macro_MCC,0.2551,0.1785
+classification,chemberta,mtr_mean_s2,MTR,True,mean,1e-05,0.001,False,False,20,2,macro_MCC,0.2154,0.1416
+classification,chemberta,mtr_mean_s3,MTR,True,mean,1e-05,0.001,False,False,20,3,macro_MCC,0.2006,0.1105
 classification,chemberta,rand_cls,MLM,False,cls,1e-05,0.001,False,,20,42,macro_MCC,0.0,0.0
 classification,chemberta,rand_mean,MLM,False,mean,1e-05,0.001,False,,20,42,macro_MCC,0.0,0.0
 classification,morgan_rdkit_lgbm,2026-11-03_12-18-18,,,,,,,,,42,macro_MCC,0.0993,0.1411

@@ -281,7 +281,84 @@ def fig_per_enzyme():
     save(fig, 'fig6_per_endpoint')
 
 
+# --- 7. every contrast with its confidence interval -------------------------
+# Reference = the selected configuration (MTR, CLS, fine-tuned, no augmentation,
+# encoder_lr 1e-5), each contrast changing exactly one thing. Effect is signed so
+# that POSITIVE always means "the chosen option is better", in both tasks.
+CONTRASTS = [
+    ('MTR vs MLM\n(checkpoint)',            'mlm_cls'),
+    ('CLS vs mean\n(pooling)',              'mtr_mean'),
+    ('Fine-tuned vs frozen\n(encoder)',     'froz_mtr_cls_noaug'),
+    ('Plain vs randomised\nSMILES',         'mtr_cls_aug'),
+    ('1e-5 vs 1e-4\n(encoder lr)',          'mtr_cls_lr1e-4'),
+]
+REFERENCE = 'mtr_cls_noaug'
+
+
+def seeds(task, name, key, n=3):
+    """Validation score of a configuration over its three training seeds."""
+    out = []
+    for s in range(1, n + 1):
+        p = RUNS / task / 'chemberta' / f'{name}_s{s}' / 'validation_metrics.json'
+        if not p.exists():
+            return None
+        out.append(json.loads(p.read_text())[key])
+    return np.array(out)
+
+
+def fig_contrasts():
+    from scipy import stats
+    fig, axes = plt.subplots(1, 2, figsize=(6.6, 3.4))
+    for ax, (task, key, lab) in zip(axes, TASKS):
+        lower = task == 'regression'          # regression: smaller is better
+        ref = seeds(task, REFERENCE, key)
+        ys, rows = [], []
+        for i, (nom, alt_name) in enumerate(CONTRASTS):
+            alt = seeds(task, alt_name, key)
+            if ref is None or alt is None:
+                continue
+            # Sign so that positive = the chosen option wins, in both tasks.
+            a, b = (alt, ref) if lower else (ref, alt)
+            diff = a.mean() - b.mean()
+            se = np.sqrt(a.var(ddof=1) / len(a) + b.var(ddof=1) / len(b))
+            df = (se**2)**2 / ((a.var(ddof=1)/len(a))**2/(len(a)-1)
+                               + (b.var(ddof=1)/len(b))**2/(len(b)-1))
+            crit = stats.t.ppf(0.975, df)
+            p = 2 * (1 - stats.t.cdf(abs(diff / se), df))
+            rows.append((nom, diff, crit * se, p))
+            ys.append(-i)
+        for y, (nom, diff, half, p) in zip(ys, rows):
+            sig = p < 0.05
+            ax.errorbar(diff, y, xerr=half, fmt='o', ms=6, color=C1,
+                        mfc=C1 if sig else SURFACE, mec=C1, mew=1.6,
+                        ecolor=C1, elinewidth=1.4, capsize=3, zorder=3)
+        ax.axvline(0, color=INK2, lw=0.9, ls=':', zorder=1)
+        ax.set_yticks(ys, [r[0] for r in rows])
+        ax.tick_params(axis='y', length=0)
+        # Room on the right for the p-values, inside the axes.
+        lo = min(d - h for _, d, h, _ in rows)
+        hi = max(d + h for _, d, h, _ in rows)
+        pad = 0.12 * (hi - lo)
+        ax.set_xlim(min(lo - pad, -pad), hi + 3.8 * pad)
+        for y, (_, diff, half, p) in zip(ys, rows):
+            txt = ('$p < 0.001$' if p < 0.001 else
+                   f'$p = {p:.3f}$' if p < 0.01 else f'$p = {p:.2f}$')
+            ax.text(hi + 3.6 * pad, y, txt, ha='right', va='center', fontsize=7.5,
+                    color=INK if p < 0.05 else INK2,
+                    fontweight='bold' if p < 0.05 else 'normal')
+        for s in ('top', 'right', 'left'):
+            ax.spines[s].set_visible(False)
+        ax.grid(axis='x', alpha=1.0)
+        ax.set_axisbelow(True)
+        ax.set_xlabel(f'Advantage of the chosen option ({lab.split(" $")[0]})')
+        ax.set_title('Regression' if lower else 'Classification', loc='left', color=INK)
+    panel_tags(axes)
+    fig.tight_layout()
+    save(fig, 'fig7_contrasts')
+
+
 if __name__ == '__main__':
     print('Figures written to', OUT)
     fig_pretraining(); fig_pooling(); fig_frozen()
     fig_augmentation(); fig_val_test(); fig_per_enzyme()
+    fig_contrasts()

@@ -10,11 +10,12 @@ copiarlo encima (ver más abajo).
 |---|---|
 | `models/chemberta.py` | Versión ampliada del modelo: cuatro cambios y dos ajustes nuevos |
 | `conf/model/chemberta.yaml` | Su configuración |
-| `batch.sh`, `batch_lr.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
+| `batch.sh`, `batch_lr.sh`, `batch_seeds.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
+| `figuras-informe/` | Las figuras separadas en `cuerpo/` (la que va en el informe) y `apendice/`, con el orden sugerido en `LEEME.md` |
 | `probe_chemberta.py`, `probe_pooling.py` | Comprobaciones sueltas sobre el modelo y el pooling |
 | `figuras/` | Seis figuras para el informe, en PDF y PNG, con el script que las genera |
 | `informe/` | `parte4-chemberta-resultados.pdf`: el registro completo de experimentos |
-| `resultados/` | Métricas e historiales de las 74 ejecuciones, y `resumen_runs.csv` |
+| `resultados/` | Métricas e historiales de las 86 ejecuciones, y `resumen_runs.csv` |
 
 ## Cambios respecto a `models/chemberta.py` de la raíz
 
@@ -54,11 +55,14 @@ donde se indique. Detalle completo en `informe/` y en `resultados/resumen_runs.c
 | `mtr_mean` | 0,753 | **0,292** |
 | sin preentrenar + `cls` | 0,982 | 0,000 |
 
-- **MTR gana a MLM** en las dos tareas y con los tres *pooling*.
+- **MTR gana a MLM** en las dos tareas y con los tres *pooling*. Con 3 semillas:
+  ventaja de 0,181 en regresión ($p<0{,}001$) y 0,144 en clasificación ($p=0{,}001$).
 - **Sin preentrenar no aprende nada**: 0,982 es exactamente predecir la media
   (0,983), y 0,000 es decir «no» a todo.
-- Con MTR, los tres *pooling* empatan: la diferencia (0,741 / 0,753 / 0,741) es
-  menor que lo que oscila sola la validación entre épocas (0,026–0,039).
+- **`cls` gana a `mean`** con MTR: 0,068 en clasificación ($p=0{,}032$) y 0,018 en
+  regresión ($p=0{,}070$). *Corrige una conclusión anterior:* con una sola semilla
+  parecían empatar, porque la semilla 42 le dio a `mtr_mean` un 0,292 en
+  clasificación que resultó ser su mejor tirada de tres (media real 0,224).
 
 Se descartaron, con medidas: la aleatorización de SMILES (3 semillas y 60 épocas,
 sin efecto), elegir el umbral del MCC (ninguna regla supera al 0,5 fijo) y `concat`
@@ -111,8 +115,11 @@ para mejorarlas bastante en la tarea difícil, pero **no sustituye a ver la
 geometría en 3D**.
 
 De todo lo que se barrió —pooling, congelación, aleatorización, umbral, épocas,
-learning rate— **la única decisión con un efecto mayor que el ruido fue MLM frente
-a MTR**.
+learning rate— **las únicas decisiones con un efecto mayor que el ruido fueron el
+checkpoint (MLM frente a MTR, en las dos tareas) y el pooling (`cls` frente a
+`mean`, en clasificación)**. Las demás se midieron con 3 semillas y quedan dentro
+de la variación entre semillas: ver `figuras-informe/cuerpo/fig7_contrasts.pdf`,
+que resume los cinco contrastes con su intervalo de confianza.
 
 ## Pendiente para el informe del grupo
 
@@ -139,5 +146,5 @@ validación y test. **No lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni lo
 `split.csv`, que son idénticos en todas. Con lo que hay se regeneran las figuras y
 se comprueba cualquier número del informe.
 
-`resultados/resumen_runs.csv` tiene las 74 ejecuciones en una tabla, con su
+`resultados/resumen_runs.csv` tiene las 86 ejecuciones en una tabla, con su
 configuración y sus notas de validación y test.

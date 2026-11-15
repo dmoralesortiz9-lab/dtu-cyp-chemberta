@@ -105,7 +105,9 @@ sin preentrenar + \var{mean} & 0.817 & 0.000 \\
         \textbf{Todo lo que hace ChemBERTa viene del preentrenamiento.}
   \item Dato incómodo pero honesto: \textbf{sin preentrenar + media (0.817) supera a MLM + cls
         (0.905)}. Un cuerpo al azar bate a uno preentrenado mal aprovechado.
-  \item Con MTR, los tres \var{pooling} empatan (0.741 / 0.753 / 0.741).
+  \item Con MTR los tres \var{pooling} parecían empatar (0.741 / 0.753 / 0.741), pero
+        \textbf{era un artefacto de medir con una sola semilla}: repetido con tres, \var{cls} le gana
+        a \var{mean} (G).
 \end{itemize}
 \end{concl}
 
@@ -266,6 +268,40 @@ clasificación.
 \end{itemize}
 \end{concl}
 
+% ---------------------------------------------------------------------
+\exper{G. Las dos comparaciones que faltaban, con 3 semillas (12 ejecuciones)}
+{Por qué: los contrastes de A (checkpoint y \var{pooling}) se midieron con \textbf{una sola semilla por configuración}, así que no se les podía poner un $p$. Justo el hallazgo principal del trabajo, MTR frente a MLM, era el peor respaldado. Se repiten \var{mlm\_cls} y \var{mtr\_mean} con las mismas 3 semillas que \var{mtr\_cls\_noaug}. \emph{(La semilla de entrenamiento no es la del reparto: el reparto sigue siendo el de la semilla 42, y todas las ejecuciones comparten el mismo \var{split\_sha256}.)}}
+
+\begin{center}
+\begin{tabular}{lcc@{\qquad}cc}
+\toprule
+& \multicolumn{2}{c}{Regresión (ST-RAE$\downarrow$)} & \multicolumn{2}{c}{Clasificación (MCC$\uparrow$)} \\
+\cmidrule(r){2-3}\cmidrule(l){4-5}
+Configuración & 1 semilla (s42) & \textbf{3 semillas} & 1 semilla (s42) & \textbf{3 semillas} \\ \midrule
+MTR + \var{cls} (elegida) & 0.741 & \textbf{0.732 $\pm$ 0.006} & 0.273 & \textbf{0.292 $\pm$ 0.021} \\
+MTR + \var{mean}          & 0.753 & 0.750 $\pm$ 0.010 & \textbf{0.292} & 0.224 $\pm$ 0.028 \\
+MLM + \var{cls}           & 0.905 & 0.914 $\pm$ 0.004 & 0.142 & 0.148 $\pm$ 0.022 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{concl}
+\begin{itemize}
+  \item \textbf{MTR frente a MLM queda confirmado y es el único efecto grande:} ventaja de 0.181
+        en regresión ($p<0.001$) y de 0.144 en clasificación ($p=0.001$).
+  \item \textbf{Corrección a la conclusión de A: \var{cls} no empata con \var{mean}, le gana.}
+        Ventaja de 0.068 en clasificación ($p=0.032$) y de 0.018 en regresión ($p=0.070$).
+  \item \textbf{Por qué nos habíamos equivocado:} con la semilla 42, \var{mtr\_mean} dio 0.292 en
+        clasificación, \emph{el valor más alto de toda la tabla~A}. Con 3 semillas su media real es
+        0.224, y aquel 0.292 resultó ser la mejor de sus tres tiradas (0.255 / 0.215 / 0.201).
+        \textbf{Era ruido, y nos llevó a concluir que los \var{pooling} empataban.} Es exactamente lo
+        que advertía B sobre la oscilación de la validación, visto esta vez en el propio resultado.
+  \item \textbf{Y encaja con la explicación del CLS:} si la cabeza de preentrenamiento del MTR leía
+        ese token, lo esperable era que \var{cls} ganase a promediar. Con una semilla no se veía; con
+        tres, sí. \textbf{La teoría predecía el resultado antes de medirlo bien.}
+\end{itemize}
+\end{concl}
+
 % =====================================================================
 \newpage
 \section{Conclusiones}
@@ -294,7 +330,7 @@ clasificación.
 \subsection*{Lo que se probó y se descartó, con medidas}
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
-\var{concat} & Empata con la mejor opción simple (0.741); no justifica duplicar la cabeza (A, B) \\
+\var{concat} & Empata con \var{cls} con una semilla; no justifica duplicar la cabeza (A, B) \\
 Umbral que maximiza el MCC & Empeora (0.240 vs 0.252): se ajusta al ruido (C) \\
 Umbral de Youden & Mejor que el anterior pero no supera al 0.5 fijo; sirve de seguro, no de mejora (C) \\
 Aleatorización de SMILES & Sin efecto, en 2 tareas, congelado y afinado, 3 semillas y 60 épocas (D, E) \\
@@ -309,9 +345,9 @@ Elegida \textbf{solo con validación}:
 \var{checkpoint=...-MTR}\quad \var{pooling=cls}\quad \var{freeze\_encoder=false}\quad
 \var{augment=false}\quad \var{epochs=20}\quad \var{encoder\_lr=1e-5}
 \end{center}
-Se elige \var{cls} entre las tres que empatan por ser la más simple y la que el preentrenamiento del
-MTR respalda (su cabeza leía ese mismo token),
-\textbf{no porque sea mejor: no se puede distinguir}. Lo mismo con \var{encoder\_lr}: 1e-5 y 1e-4
+Se elige \var{cls} porque \textbf{con 3 semillas le gana a \var{mean}} ($p=0.032$ en clasificación,
+$p=0.070$ en regresión; G) y porque es lo que predecía el preentrenamiento del MTR: su cabeza leía ese
+mismo token. \emph{Con una sola semilla parecían empatar, y esa fue la conclusión equivocada de~A.} Lo mismo con \var{encoder\_lr}: 1e-5 y 1e-4
 empatan (F), así que se conserva el de partida; si hubiera que desempatar, 1e-4 es algo más estable
 entre semillas.
 
@@ -406,6 +442,21 @@ Pensadas para el informe final. \textbf{Las imágenes no llevan pie dentro}: el 
 \var{\textbackslash caption}, para que LaTeX las numere y el texto pueda citarlas con
 \var{\textbackslash ref}. Los títulos de los paneles dicen qué se representa, no qué concluimos. Se
 regeneran con \var{figuras/hacer\_figuras.py}, que lee \var{runs/}.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig7_contrasts.pdf}
+  \caption{\textbf{Todas las decisiones de diseño, con su intervalo de confianza del 95\,\%}
+  (experimentos~A--G). Cada contraste cambia un solo ajuste respecto a la configuración elegida
+  (MTR, CLS, cuerpo sin congelar, sin aleatorizar, \var{encoder\_lr} 1e-5), con tres semillas de
+  entrenamiento por lado. El efecto se expresa de modo que un valor positivo significa que la opción
+  elegida es mejor, en las dos tareas. Marcador relleno: diferencia significativa ($p<0.05$, $t$ de
+  Welch); hueco: no significativa. Solo el \emph{checkpoint} separa claramente su intervalo del cero
+  en las dos tareas; el \var{pooling} lo hace en clasificación. Las otras tres decisiones quedan
+  dentro de la variación entre semillas: \textbf{no es que no se exploraran, es que se midieron y no
+  cambian nada}.}
+  \label{fig:contrasts}
+\end{figure}
 
 \begin{figure}[htbp]
   \centering
