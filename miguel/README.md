@@ -10,11 +10,11 @@ copiarlo encima (ver más abajo).
 |---|---|
 | `models/chemberta.py` | Versión ampliada del modelo: cuatro cambios y dos ajustes nuevos |
 | `conf/model/chemberta.yaml` | Su configuración |
-| `batch.sh` | Lanza varios entrenamientos dentro de un mismo trabajo de la cola |
+| `batch.sh`, `batch_lr.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
 | `probe_chemberta.py`, `probe_pooling.py` | Comprobaciones sueltas sobre el modelo y el pooling |
 | `figuras/` | Seis figuras para el informe, en PDF y PNG, con el script que las genera |
 | `informe/` | `parte4-chemberta-resultados.pdf`: el registro completo de experimentos |
-| `resultados/` | Métricas e historiales de las 64 ejecuciones, y `resumen_runs.csv` |
+| `resultados/` | Métricas e historiales de las 74 ejecuciones, y `resumen_runs.csv` |
 
 ## Cambios respecto a `models/chemberta.py` de la raíz
 
@@ -64,24 +64,61 @@ Se descartaron, con medidas: la aleatorización de SMILES (3 semillas y 60 époc
 sin efecto), elegir el umbral del MCC (ninguna regla supera al 0,5 fijo) y `concat`
 (empata y duplica la cabeza).
 
-## Un cabo suelto importante
+## El learning rate: medido y cerrado
 
-**Estos experimentos usan `encoder_lr` = 1e-5 y los de Daniel demostraron que ese
-valor infraentrena** (su barrido da una curva en U con mínimo en 1e-4). Las dos
-mitades del trabajo no se han combinado todavía:
+Daniel encontró que `encoder_lr` 1e-5 infraentrena, con una curva en U cuyo mínimo
+está en 1e-4: con el checkpoint **MLM** ese cambio vale 0,071. Como todas las
+ejecuciones de aquí usaban 1e-5, quedaba la duda de si la rejilla de
+checkpoint × pooling estaba hecha sobre un valor malo.
 
-| | checkpoint | pooling | encoder_lr | Regresión |
-|---|---|---|---|---|
-| Daniel | MLM | mean | **1e-4** | 0,792 ± 0,008 |
-| Miguel | **MTR** | cls | 1e-5 | 0,732 ± 0,006 |
-| Falta | **MTR** | cls / mean | **1e-4** | ? |
+**Se midió sobre MTR (10 ejecuciones, `batch_lr.sh`) y no se traslada.** Validación,
+MTR + cls sin congelar:
 
-Conviene lanzarlo antes de cerrar la configuración final: la rejilla de
-checkpoint × pooling se hizo con un learning rate que ahora sabemos subóptimo, así
-que las conclusiones podrían moverse.
+| `encoder_lr` | Regresión (ST-RAE ↓) | Clasificación (MCC ↑) |
+|---|---|---|
+| 3e-5 *(1 semilla)* | 0,726 | 0,253 |
+| **1e-5** *(de partida, 3 semillas)* | **0,732 ± 0,006** | **0,292 ± 0,021** |
+| **1e-4** *(el de Daniel, 3 semillas)* | **0,728 ± 0,005** | **0,285 ± 0,012** |
+| 3e-4 *(1 semilla)* | 0,731 | 0,263 |
 
-Ojo también con el baseline de referencia: el informe de Daniel compara con
-Morgan MLP (0,843) y este con LightGBM (0,740). Hay que fijar uno para el informe.
+- **Con MTR el learning rate no cambia nada** ($p = 0{,}39$ y $0{,}63$). Los cuatro
+  valores caen entre 0,726 y 0,732 en regresión: el fondo es plano, no hay curva
+  en U. En clasificación el mejor es directamente el de partida.
+- **La sensibilidad depende del checkpoint**, así que un barrido hecho sobre MLM no
+  vale para MTR. Encaja con lo del punto 1: la cabeza de preentrenamiento del MTR
+  leía el token CLS, así que el cuerpo llega con un resumen que ya sirve y apenas
+  necesita moverse; el de MLM nunca entrenó ese token y tiene que recorrer mucho
+  más camino, y ahí sí importa a qué velocidad.
+- **La configuración elegida no cambia**, y la objeción queda cerrada con medidas.
+
+## Veredicto (test, evaluado una sola vez)
+
+| Modelo | Regresión (ST-RAE ↓) | Clasificación (MCC ↑) |
+|---|---|---|
+| Morgan MLP | 0,864 | — |
+| LightGBM | 0,783 | 0,141 |
+| **ChemBERTa** | **0,778** | **0,183** |
+| Atom-JEPA | **0,739** | **0,231** |
+
+**ChemBERTa queda en medio, y de forma consistente en las dos tareas.** Gana al
+baseline en ambas (en clasificación por un 30 % sobre LightGBM), y pierde contra
+Atom-JEPA en ambas. En regresión la ventaja sobre LightGBM es de 0,005, dentro del
+ruido, así que lo honesto es decir que **empata** con el baseline y pierde contra
+Atom-JEPA.
+
+Leer la molécula como texto basta para igualar a unas *features* hechas a mano y
+para mejorarlas bastante en la tarea difícil, pero **no sustituye a ver la
+geometría en 3D**.
+
+De todo lo que se barrió —pooling, congelación, aleatorización, umbral, épocas,
+learning rate— **la única decisión con un efecto mayor que el ruido fue MLM frente
+a MTR**.
+
+## Pendiente para el informe del grupo
+
+**Hay que fijar un solo baseline de referencia.** El informe de Daniel compara con
+Morgan MLP (0,843 en validación) y este con LightGBM (0,740). Son modelos distintos
+y el enunciado pide elegir uno.
 
 ## Figuras
 
@@ -102,5 +139,5 @@ validación y test. **No lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni lo
 `split.csv`, que son idénticos en todas. Con lo que hay se regeneran las figuras y
 se comprueba cualquier número del informe.
 
-`resultados/resumen_runs.csv` tiene las 64 ejecuciones en una tabla, con su
+`resultados/resumen_runs.csv` tiene las 74 ejecuciones en una tabla, con su
 configuración y sus notas de validación y test.

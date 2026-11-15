@@ -5,6 +5,9 @@
 \usepackage{lmodern,microtype}
 \usepackage[margin=2.2cm]{geometry}
 \usepackage{xcolor,tabularx,booktabs,enumitem}
+\usepackage{graphicx}
+\graphicspath{{figuras/}{../figuras/}}
+\usepackage[font=small,labelfont=bf]{caption}
 \usepackage[most]{tcolorbox}
 \usepackage{listings}
 \usepackage[hidelinks]{hyperref}
@@ -224,6 +227,45 @@ con aleatorizar, 60 épocas & 0.275 $\pm$ 0.007 & 20/20/26 de 60 \\
 posibles (si hacía falta que el cuerpo aprendiera, y si hacían falta más épocas).
 \end{concl}
 
+% ---------------------------------------------------------------------
+\exper{F. Barrido del \emph{learning rate} del cuerpo con MTR (10 ejecuciones)}
+{Por qué: todas las ejecuciones anteriores usan \var{encoder\_lr} 1e-5, heredado de \var{atom\_jepa.yaml}. El barrido de Daniel sobre el checkpoint \textbf{MLM} muestra que ese valor infraentrena, con una curva en U cuyo mínimo está en 1e-4: pasar de uno a otro le mejoró de 0.900 a 0.829. Si eso valiera también para MTR, toda la rejilla del experimento~A estaría hecha con un valor subóptimo y las conclusiones podrían moverse. El óptimo puede depender del checkpoint, así que se vuelve a medir sobre MTR. 1e-4 va con \textbf{3 semillas} porque es la comparación que decide; 3e-5 y 3e-4 con una, solo para ver la forma de la curva.}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\var{encoder\_lr} & Regresión (ST-RAE$\downarrow$) & Clasificación (MCC$\uparrow$) \\ \midrule
+3e-5 \emph{(1 semilla)} & 0.726 & 0.253 \\
+\textbf{1e-5} \emph{(de partida, 3 semillas)} & \textbf{0.732 $\pm$ 0.006} & \textbf{0.292 $\pm$ 0.021} \\
+\textbf{1e-4} \emph{(el de Daniel, 3 semillas)} & \textbf{0.728 $\pm$ 0.005} & \textbf{0.285 $\pm$ 0.012} \\
+3e-4 \emph{(1 semilla)} & 0.731 & 0.263 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Contraste 1e-4 frente a 1e-5 ($t$ de Welch, $n=3$): $p=0.39$ en regresión y $p=0.63$ en
+clasificación. La diferencia vale 0.7 veces el ruido entre semillas en regresión y 0.3 veces en
+clasificación.
+
+\begin{concl}
+\begin{itemize}
+  \item \textbf{Con MTR el \emph{learning rate} no cambia nada.} Los cuatro valores caen entre 0.726 y
+        0.732 en regresión, un margen más estrecho que lo que varía solo con cambiar la semilla. No
+        hay curva en U: el fondo es plano. En clasificación el mejor es directamente el de partida.
+  \item \textbf{Es lo contrario de lo que ocurre con MLM}, donde el mismo cambio vale 0.071. La
+        sensibilidad al \emph{learning rate} \textbf{depende del checkpoint}, así que un barrido hecho
+        sobre uno no se puede trasladar al otro.
+  \item \textbf{Encaja con lo que ya sabíamos de MTR} (ver conclusiones): su cabeza de preentrenamiento
+        leía el token CLS, así que el cuerpo llega con una representación que ya sirve y apenas
+        necesita moverse. El de MLM nunca entrenó ese token, así que tiene que recorrer mucho más
+        camino, y ahí sí importa a qué velocidad lo recorre.
+  \item \textbf{Consecuencia práctica:} la configuración elegida \textbf{no cambia}, y la objeción de
+        que la rejilla se hizo con un \emph{learning rate} subóptimo queda cerrada con medidas.
+  \item Único matiz a favor de 1e-4: es algo \textbf{más estable entre semillas} ($\pm$0.005 frente a
+        $\pm$0.006, y $\pm$0.012 frente a $\pm$0.021). Mismo resultado medio, menos dispersión.
+\end{itemize}
+\end{concl}
+
 % =====================================================================
 \newpage
 \section{Conclusiones}
@@ -242,6 +284,11 @@ posibles (si hacía falta que el cuerpo aprendiera, y si hacían falta más épo
         \textbf{el CLS no se usó nunca}. Por eso se cruzó la rejilla en A en vez de fijar un pooling.
   \item \textbf{El preentrenamiento lo es todo.} Sin él: 0.982 en regresión (= predecir la media) y
         0.000 en clasificación.
+  \item \textbf{MTR además es robusto}: con él, el \emph{learning rate} del cuerpo no cambia el
+        resultado (F), mientras que con MLM vale 0.071. Es la misma explicación del punto~1 vista desde
+        otro lado: un cuerpo que ya llega con un resumen utilizable no necesita moverse, así que da
+        igual a qué velocidad se le permita hacerlo. \textbf{No hay que acertar con el hiperparámetro},
+        que es una ventaja práctica y no solo una mejor nota.
 \end{enumerate}
 
 \subsection*{Lo que se probó y se descartó, con medidas}
@@ -252,6 +299,7 @@ Umbral que maximiza el MCC & Empeora (0.240 vs 0.252): se ajusta al ruido (C) \\
 Umbral de Youden & Mejor que el anterior pero no supera al 0.5 fijo; sirve de seguro, no de mejora (C) \\
 Aleatorización de SMILES & Sin efecto, en 2 tareas, congelado y afinado, 3 semillas y 60 épocas (D, E) \\
 Congelar el cuerpo & Ligeramente peor sin significación. Pero cuesta \textbf{5 veces menos} (B, D) \\
+Subir el \emph{learning rate} a 1e-4 & Sin efecto con MTR ($p=0.39$ y $0.63$), aunque con MLM valga 0.071 (F) \\
 \bottomrule
 \end{tabularx}
 
@@ -259,11 +307,19 @@ Congelar el cuerpo & Ligeramente peor sin significación. Pero cuesta \textbf{5 
 Elegida \textbf{solo con validación}:
 \begin{center}
 \var{checkpoint=...-MTR}\quad \var{pooling=cls}\quad \var{freeze\_encoder=false}\quad
-\var{augment=false}\quad \var{epochs=20}
+\var{augment=false}\quad \var{epochs=20}\quad \var{encoder\_lr=1e-5}
 \end{center}
 Se elige \var{cls} entre las tres que empatan por ser la más simple y la que el preentrenamiento del
 MTR respalda (su cabeza leía ese mismo token),
-\textbf{no porque sea mejor: no se puede distinguir}.
+\textbf{no porque sea mejor: no se puede distinguir}. Lo mismo con \var{encoder\_lr}: 1e-5 y 1e-4
+empatan (F), así que se conserva el de partida; si hubiera que desempatar, 1e-4 es algo más estable
+entre semillas.
+
+\medskip
+\noindent\textbf{Lo único que de verdad hay que acertar es el checkpoint.} De todo lo que se barrió
+---\,pooling, congelación, aleatorización, umbral, épocas, \emph{learning rate}\,--- la única decisión
+con un efecto mayor que el ruido fue \textbf{MLM frente a MTR}. Es la conclusión más útil del trabajo:
+no porque las demás no importen nunca, sino porque \textbf{aquí} se midieron y no importaron.
 
 \subsection*{Resultados en test}
 Test se calcula solo en cada ejecución, pero \textbf{no se consultó ni una vez} hasta cerrar la
@@ -275,8 +331,10 @@ configuración por validación.
 & \multicolumn{2}{c}{Regresión (ST-RAE$\downarrow$)} & \multicolumn{2}{c}{Clasificación (MCC$\uparrow$)} \\
 \cmidrule(r){2-3}\cmidrule(l){4-5}
 Modelo & validación & \textbf{test} & validación & \textbf{test} \\ \midrule
+Morgan MLP & 0.846 & 0.864 & --- & --- \\
 LightGBM (baseline) & 0.740 & 0.783 & 0.099 & 0.141 \\
 \textbf{ChemBERTa} (3 semillas) & 0.732 & \textbf{0.778} & 0.292 & \textbf{0.183} \\
+\quad\emph{ídem con \var{encoder\_lr}=1e-4} & \emph{0.728} & \emph{0.774} & \emph{0.285} & \emph{0.217} \\
 Atom-JEPA & 0.664 & \textbf{0.739} & 0.259 & \textbf{0.231} \\
 \bottomrule
 \end{tabular}
@@ -301,6 +359,31 @@ ruidoso que el ST-RAE; en regresión no pasa (ChemBERTa cae 0.046, igual que Lig
 La comparación válida es la de test.
 \end{concl}
 
+\subsection*{Veredicto}
+
+\begin{concl}
+\textbf{ChemBERTa queda en medio, y de forma consistente en las dos tareas.}
+\begin{itemize}
+  \item \textbf{Gana al \emph{baseline}} en las dos: 0.778 frente a 0.783 en regresión (y frente a
+        0.864 del Morgan MLP) y 0.183 frente a 0.141 en clasificación. En clasificación la ventaja es
+        grande, \textbf{un 30\,\% sobre LightGBM}.
+  \item \textbf{Pierde contra Atom-JEPA} en las dos: 0.778 frente a 0.739 y 0.183 frente a 0.231.
+  \item En regresión la distancia con el \emph{baseline} es mínima (0.005, dentro del ruido), así que
+        lo honesto es decir que \textbf{empata} con LightGBM y pierde claramente contra Atom-JEPA.
+\end{itemize}
+
+\smallskip
+\textbf{Lectura:} leer la molécula como texto basta para igualar a unas \emph{features} hechas a mano y
+para mejorarlas bastante en la tarea difícil, pero \textbf{no sustituye a ver la geometría en 3D}. La
+diferencia con Atom-JEPA (0.064 en regresión, once veces el ruido entre semillas) es la única
+comparación grande y estable de todo el estudio, junto con MLM frente a MTR.
+\end{concl}
+
+\noindent\textbf{Un cabo que no se tira.} Con \var{encoder\_lr}=1e-4 el test de clasificación sube a
+0.217, mucho más cerca de Atom-JEPA. \textbf{No se usa}: en validación 1e-4 y 1e-5 empatan ($p=0.63$),
+así que elegir entre ellos mirando el test sería exactamente lo que el protocolo prohíbe. Se deja
+anotado porque es información, no porque cambie la configuración.
+
 \subsection*{Tres cosas más que conviene declarar en el informe}
 \begin{enumerate}
   \item \textbf{La validación es ruidosa:} oscila sola 0.026--0.039 (regresión) y 0.027--0.070
@@ -314,5 +397,87 @@ La comparación válida es la de test.
         fijo lo penaliza. \textbf{Explica en parte por qué CYP2D6 va mal en todos los modelos.} No se
         puede corregir (hay que mantener el reparto con semilla 42), pero merece mencionarse.
 \end{enumerate}
+
+% =====================================================================
+\newpage
+\section{Figuras}
+
+Pensadas para el informe final. \textbf{Las imágenes no llevan pie dentro}: el pie va aquí, en
+\var{\textbackslash caption}, para que LaTeX las numere y el texto pueda citarlas con
+\var{\textbackslash ref}. Los títulos de los paneles dicen qué se representa, no qué concluimos. Se
+regeneran con \var{figuras/hacer\_figuras.py}, que lee \var{runs/}.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig1_pretraining_objective.pdf}
+  \caption{\textbf{Efecto del objetivo de preentrenamiento} (experimento~A). Pérdida de entrenamiento
+  (a, c) y nota de validación (b, d) por época, para los dos \emph{checkpoints} publicados de
+  ChemBERTa-2 y un control sin preentrenar, con \var{pooling} fijado a CLS y el cuerpo sin congelar.
+  El control usa la misma arquitectura con pesos al azar. Las curvas de validación se muestran crudas
+  (traslúcidas) bajo una media móvil de tres épocas; los marcadores señalan la época elegida por
+  validación. MTR llega a una pérdida menor y a una nota mejor que MLM en las dos tareas, mientras que
+  el control se queda en el nivel de predecir la media (MA-ST-RAE $\approx 1$) y de decir que no a
+  todo (MCC $= 0$).}
+  \label{fig:pretraining}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig2_pooling.pdf}
+  \caption{\textbf{Efecto del \emph{pooling}, por \emph{checkpoint}} (experimento~A). Nota de
+  validación por época para las tres formas de reducir la secuencia de tokens a un vector: el token
+  CLS, la media sobre los tokens reales y la concatenación de ambos. La escala vertical se comparte
+  dentro de cada fila, así que los dos \emph{checkpoints} se pueden comparar directamente. El
+  \emph{pooling} importa con MLM, donde CLS es la peor opción, y las tres alternativas quedan dentro
+  del ruido entre sí con MTR.}
+  \label{fig:pooling}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig3_frozen_vs_finetuned.pdf}
+  \caption{\textbf{Cuerpo congelado frente a afinado} (experimento~B; MTR, \var{pooling} CLS). La
+  ejecución congelada entrena solo la cabeza. Su pérdida de entrenamiento es la menor de las dos
+  porque congelar el cuerpo también desactiva su \var{dropout}, así que comparar los paneles (a) y (c)
+  no es comparar lo mismo; los de validación, (b) y (d), sí. Los dos protocolos terminan dentro de la
+  dispersión entre semillas del otro, con una quinta parte del cómputo.}
+  \label{fig:frozen}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig4_augmentation.pdf}
+  \caption{\textbf{Aleatorización de SMILES} (experimento~D). Nota de validación por época con y sin
+  reescribir cada molécula como un SMILES distinto y igualmente válido en cada época; la
+  aleatorización se aplica solo al conjunto de entrenamiento. Línea: media de tres semillas; banda:
+  $\pm$1 desviación. Las bandas se solapan de principio a fin, y en las épocas elegidas la diferencia
+  no es significativa ($p = 0.13$ en regresión y $p = 0.26$ en clasificación).}
+  \label{fig:augmentation}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig5_validation_to_test.pdf}
+  \caption{\textbf{De validación a test} para los tres modelos, cada uno evaluado una sola vez en test
+  después de cerrar su configuración por validación. ChemBERTa es la media de tres semillas. El orden
+  se mantiene en regresión y se invierte en clasificación, donde ChemBERTa cae 0.108 frente a 0.028 de
+  Atom-JEPA. La configuración de ChemBERTa se eligió comparando unas 64 ejecuciones en validación,
+  mientras que Atom-JEPA y LightGBM se lanzaron una vez con sus ajustes por defecto, así que su cifra
+  de validación está inflada en una cantidad que los otros dos no arrastran.}
+  \label{fig:valtest}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig6_per_endpoint.pdf}
+  \caption{\textbf{Comportamiento por enzima de la configuración elegida} (MTR, CLS, sin congelar,
+  semilla 1): regresión (a--d) y clasificación (e--f). La escala vertical se comparte dentro de cada
+  fila; la línea de puntos marca el predictor de la media, así que cualquier curva por encima predice
+  peor que predecir siempre la media. Los marcadores dan el valor por enzima en la época elegida con
+  la nota agregada. Las dos enzimas con más moléculas etiquetadas, CYP3A4 y CYP2C9, sostienen el
+  resultado; CYP1A2 y CYP2D6 se quedan en el predictor de la media o por encima durante casi toda la
+  ejecución.}
+  \label{fig:perendpoint}
+\end{figure}
 
 \end{document}
