@@ -1,0 +1,22 @@
+# @package _global_
+# Pretrained ChemBERTa encoder + readout head.
+defaults:
+  - override /readout: mlp
+
+model:
+  name: chemberta
+  type: chemberta
+  checkpoint: DeepChem/ChemBERTa-77M-MTR   # ...-MLM (masked tokens) | ...-MTR (RDKit properties)
+  pretrained: true        # false = same architecture with random weights (ablation)
+  freeze_encoder: false   # true trains only the readout head
+  pooling: cls            # cls | mean | concat
+  augment: false          # true = a random SMILES writing per epoch (training only)
+  max_length: 256         # longest molecule in the data is 119 tokens, so nothing is cut
+  encoder_lr: 1.0e-5
+  readout_lr: 1.0e-3
+
+train:
+  epochs: 20
+  batch_size: 32
+  weight_decay: 1.0e-4
+  grad_clip: 1.0
