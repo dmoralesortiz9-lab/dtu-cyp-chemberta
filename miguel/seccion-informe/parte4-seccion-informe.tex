@@ -1,0 +1,313 @@
+% =====================================================================
+% Part 4 - Second foundation model (ChemBERTa-2)
+% Daniel Morales & Miguel Quijada
+%
+% Standalone two-column document. To merge into the group report,
+% delete the preamble, keep \section{...} onwards, and \input{} this
+% file from main.tex. The appendix figures go in the group appendix.
+%
+% Needs: booktabs, graphicx. Figures live in figuras/ (PDF).
+%
+% Every number here comes from runs stored in the repository under
+% miguel/resultados/, three training seeds per configuration, mean +-
+% standard deviation. Contrasts are two-sided Welch t-tests on
+% validation. The split is the default seed 42 throughout; all runs
+% share one split_sha256.
+% =====================================================================
+\documentclass[10pt,twocolumn,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\graphicspath{{figuras/}}
+\setlength{\columnsep}{0.7cm}
+\pagestyle{empty}
+
+\begin{document}
+
+\section{Second foundation model: ChemBERTa-2}
+
+\subsection{Model and integration}
+
+ChemBERTa-2 is a RoBERTa encoder pretrained on SMILES strings. It
+contrasts cleanly with Atom-JEPA: it reads the molecule as 1D text
+rather than 3D geometry, so it needs no conformers, and it is small
+(3.3M parameters, 384-dimensional embeddings). We use the
+\texttt{DeepChem/ChemBERTa-77M} checkpoints.
+
+Two checkpoints exist, pretrained on different objectives.
+\textbf{MLM} masks tokens of the SMILES string and predicts them from
+context, so it learns the grammar of valid molecules. \textbf{MTR}
+instead predicts 199 computed physicochemical descriptors, so it learns
+to map structure to properties. Their load reports confirm this: MLM
+ships \texttt{lm\_head} layers, MTR ships \texttt{regression.*} layers
+with normalisation statistics.
+
+Integration follows the starter code's model interface, with
+tokenisation in the collate function. Because the encoder emits one
+vector \emph{per token}, a pooling step reduces them to one vector per
+molecule, either the \texttt{CLS} token or the mask-weighted
+\texttt{mean}, before the MLP readout.
+
+One correction to the default loading: these checkpoints do not contain
+the \texttt{pooler} layer, so \texttt{from\_pretrained} creates it with
+random weights even though \texttt{forward} never uses it. Besides
+inflating the reported parameter count, initialising it consumes random
+state, so the readout starts from different weights under the same
+seed. We load with \texttt{add\_pooling\_layer=False}.
+
+\subsection{Methodology}
+
+The validation metric fluctuates markedly between epochs while the
+training loss falls smoothly (Fig.~\ref{fig:grid}). Since the loop
+keeps the best epoch by validation, it selects the minimum of a noisy
+series, which biases the reported score downwards, so a single run is
+not a reliable measurement.
+
+We ran every configuration behind a decision with \textbf{three
+training seeds} and report mean $\pm$ standard deviation, with
+two-sided Welch $t$-tests between configurations. The spread between
+seeds is $\pm 0.006$ ST-RAE and $\pm 0.021$ MCC. Changing the training
+seed does not change the data split, which stays at the default seed 42
+in all runs.
+
+This protocol was not precautionary. Measured with one seed, two
+conclusions came out wrong: the poolings appeared to tie, and freezing
+the encoder appeared to win on classification. Both reversed with three
+seeds.
+
+All decisions use validation only; test was evaluated once, at the end.
+
+\subsection{Effect of the pretraining objective}
+
+The checkpoint and the pooling were crossed rather than fixed one at a
+time, because the two can interact, and they do (Table~\ref{tab:grid},
+Fig.~\ref{fig:grid}).
+
+\begin{table}[t]
+  \centering
+  \caption{Validation performance of the checkpoint $\times$ pooling
+  grid, encoder fine-tuned, three seeds.}
+  \label{tab:grid}
+  \begin{tabular}{llcc}
+    \toprule
+    Checkpoint & Pooling & ST-RAE $\downarrow$ & MCC $\uparrow$ \\
+    \midrule
+    MLM & CLS  & $0.914 \pm 0.004$ & $0.148 \pm 0.022$ \\
+    MLM & mean & $0.817 \pm 0.017$ & $0.194 \pm 0.022$ \\
+    MTR & CLS  & $\mathbf{0.732 \pm 0.006}$ & $\mathbf{0.292 \pm 0.021}$ \\
+    MTR & mean & $0.750 \pm 0.010$ & $0.224 \pm 0.028$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+MTR outperforms MLM on both tasks and under both poolings: $+0.181$
+ST-RAE with CLS ($p < 0.001$) and $+0.067$ with mean ($p = 0.009$).
+
+The pooling effect \emph{reverses} with the checkpoint. With MTR, CLS
+is the better summary ($+0.068$ MCC, $p = 0.032$); with MLM it is the
+worse one ($-0.096$ ST-RAE, $p = 0.008$). The same inversion appears in
+both tasks.
+
+This follows from the objectives. MTR's regression head reads only the
+sequence summary to predict all 199 descriptors, so its \texttt{CLS}
+token is trained to be informative. MLM's objective reads the vector at
+each masked position instead, so its \texttt{CLS} is never used, and
+the pooler weights are in fact absent from the checkpoint.
+
+The interaction is also why the two factors had to be crossed: with the
+pooling fixed to CLS, the checkpoint difference reads $+0.181$, against
+$+0.067$ with the mean. The first figure confounds the effect of the
+checkpoint with the penalty of using a token MLM never trained.
+
+An ablation isolates the contribution of pretraining itself: the same
+architecture with randomly initialised weights reaches $0.982$ on
+regression, which is what predicting the training mean achieves
+($0.983$), and MCC $0.000$ on classification, i.e.\ predicting the
+negative class everywhere. All of the performance comes from
+pretraining, none from the architecture.
+
+\subsection{MTR is robust to how it is adapted}
+
+Three further decisions were tested on the winning configuration. None
+of them changes the result (Table~\ref{tab:robust}).
+
+\begin{table}[t]
+  \centering
+  \caption{Training decisions, each changing one setting against the
+  selected configuration. Three seeds; $p$ from a Welch test on
+  validation.}
+  \label{tab:robust}
+  \begin{tabular}{lcc}
+    \toprule
+    Change & $\Delta$ ST-RAE & $\Delta$ MCC \\
+    \midrule
+    Freeze the encoder      & $+0.007$ ($p=0.21$) & $-0.015$ ($p=0.40$) \\
+    Randomise SMILES        & $+0.009$ ($p=0.13$) & $-0.017$ ($p=0.30$) \\
+    \texttt{encoder\_lr} $10^{-4}$ & $-0.004$ ($p=0.40$) & $-0.007$ ($p=0.65$) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\textbf{Learning rate.} Sweeping six values over three orders of
+magnitude leaves a flat plateau: from $10^{-6}$ to $3\times10^{-4}$
+every mean sits within $\pm 0.007$ and no contrast approaches
+significance ($p \geq 0.40$, Bonferroni threshold $0.05/5 = 0.01$ for
+the five comparisons). Only at $10^{-3}$ does training degrade, to
+$0.782 \pm 0.014$ (Fig.~\ref{fig:lr}). The sweep was extended until the
+model broke on both sides, which is what shows the plateau is a result
+rather than a lack of resolution. We keep $10^{-5}$ because nothing
+beats it, not because it is optimal.
+
+This is the opposite of what the MLM checkpoint does, where the same
+change is worth $0.071$. \textbf{Sensitivity to the learning rate
+depends on the checkpoint}, so a sweep run on one does not transfer to
+the other. It is the same story as the pooling, seen from another side:
+MLM arrives encoding structure and needs substantial adaptation, MTR
+already encodes properties and needs very little.
+
+\textbf{Freezing.} Training the readout alone costs $0.007$ ST-RAE and
+$0.015$ MCC, neither significant (Fig.~\ref{fig:frozen}), at roughly
+one fifth of the compute. With one seed this comparison came out the
+other way, which is what prompted the multi-seed protocol.
+
+\textbf{SMILES randomisation.} Rewriting each molecule as a different
+valid SMILES string every epoch is an augmentation only a text model
+can use, since Atom-JEPA has no equivalent. It does not help
+(Fig.~\ref{fig:aug}), and the result holds across three seeds and at 60
+epochs.
+
+A threshold-tuning experiment on the saved probabilities (max-MCC and
+Youden, selected on one half of validation and scored on the other)
+also failed to beat the fixed $0.5$ threshold.
+
+\subsection{Final configuration and results}
+
+The selected configuration is the MTR checkpoint with \texttt{CLS}
+pooling, a fine-tuned encoder, \texttt{encoder\_lr}~$=10^{-5}$ and no
+augmentation, chosen on validation alone (Table~\ref{tab:final}).
+
+\begin{table}[t]
+  \centering
+  \caption{Selected configuration, three seeds. Regression is macro
+  ST-RAE (lower is better), classification is mean MCC (higher is
+  better).}
+  \label{tab:final}
+  \begin{tabular}{lcc}
+    \toprule
+    Split & Regression & Classification \\
+    \midrule
+    Validation & $0.732 \pm 0.006$ & $0.292 \pm 0.021$ \\
+    Test       & $0.778 \pm 0.010$ & $0.183 \pm 0.019$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Regression transfers as expected, losing $0.046$ from validation to
+test. Classification loses $0.109$, which is more than the other models
+give up (Fig.~\ref{fig:valtest}; the cross-model comparison is
+discussed in Part~5). Part of that gap is the cost of selection: this
+configuration was chosen by comparing over a hundred validation runs,
+so its validation figure carries an optimism the others do not. The
+MCC is also far noisier than the ST-RAE, which makes it the more
+fragile of the two metrics to select on.
+
+\subsection{Limitations}
+
+The aggregate hides a split outcome (Fig.~\ref{fig:endpoint}). On test,
+CYP3A4 carries the result in both tasks (ST-RAE $0.550$, $R^2 = 0.55$;
+MCC $0.276$, AUROC $0.766$), while CYP2D6 contributes almost nothing
+(ST-RAE $0.977$, barely better than the mean predictor; MCC $0.052$,
+AUROC $0.482$, which is chance). Its validation MCC of $0.173$ was
+noise from a metric computed on around 60 positives.
+
+Two structural limits are worth stating. First, the CYP2D6 split is
+imbalanced inconsistently: $19.5\%$ positives in train against $27.4\%$
+in validation and $25.7\%$ in test, whereas CYP3A4 is stable
+($21.3/20.4/22.2\%$). The model calibrates on one prevalence and is
+scored on another. Second, with roughly $20\%$ positives overall the
+model rarely exceeds the fixed $0.5$ threshold, so it ranks better than
+it decides; reporting MCC alongside AUROC makes this visible.
+
+Finally, three seeds only detect large effects. Where we report no
+significant difference, the honest reading is that any difference is
+smaller than the seed-to-seed spread, not that none exists.
+
+% =====================================================================
+% APPENDIX - move these to the group appendix
+% =====================================================================
+\onecolumn
+\appendix
+\section{Supplementary figures for Part 4}
+
+All curves are the mean over three training seeds with a $\pm 1$ s.d.
+band; contrasts are Welch tests with 95\% intervals, signed so that a
+positive value means the selected option is better. Filled markers are
+significant at the 5\% level, hollow ones are not.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{fig1_checkpoint_pooling.pdf}
+  \caption{Checkpoint $\times$ pooling, crossed. The effect of the
+  pooling changes sign with the checkpoint: CLS wins under MTR and
+  loses under MLM. Fixing the pooling to CLS would have reported the
+  checkpoint difference as $+0.181$ instead of $+0.067$, confounding it
+  with the penalty of using a token MLM never trained.}
+  \label{fig:grid}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{fig2_learning_rate.pdf}
+  \caption{Encoder learning rate, six values over three orders of
+  magnitude. (a, c) one curve per value, on a light-to-dark ramp
+  because the variable is ordered. (b, d) the sweep itself: shaded band
+  the plateau, ringed marker the selected value. The model is
+  insensitive between $10^{-6}$ and $3\times10^{-4}$ and degrades at
+  $10^{-3}$.}
+  \label{fig:lr}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{fig3_frozen.pdf}
+  \caption{Frozen versus fine-tuned encoder. The bands overlap
+  throughout and the contrast crosses zero in both tasks. The frozen
+  run reaches a lower training loss because freezing also disables the
+  encoder's dropout, so that panel is not a like-for-like comparison;
+  the validation panels are.}
+  \label{fig:frozen}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{fig4_augmentation.pdf}
+  \caption{SMILES randomisation, applied to the training split only so
+  validation and test keep the canonical string. An augmentation
+  available to a text model and not to Atom-JEPA; it makes no
+  difference here.}
+  \label{fig:aug}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{fig5_per_endpoint.pdf}
+  \caption{Per-endpoint behaviour of the selected configuration. The
+  dotted line marks the mean predictor, so any curve above it predicts
+  worse than predicting the training mean. CYP3A4 and CYP2C9, the two
+  endpoints with the most labelled molecules, carry the result.}
+  \label{fig:endpoint}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{fig6_validation_to_test.pdf}
+  \caption{Validation to test for the three models, each evaluated once
+  on test after its configuration was fixed. ChemBERTa is the mean of
+  three seeds. The cross-model comparison is discussed in Part~5.}
+  \label{fig:valtest}
+\end{figure}
+
+\end{document}
