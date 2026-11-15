@@ -1,0 +1,20 @@
+# @package _global_
+# Pretrained ChemBERTa encoder + readout head.
+defaults:
+  - override /readout: mlp
+
+model:
+  name: chemberta
+  type: chemberta
+  checkpoint: DeepChem/ChemBERTa-77M-MLM
+  freeze_encoder: false   # true trains only the readout head
+  pooling: cls            # cls | mean
+  max_length: 256
+  encoder_lr: 1.0e-5
+  readout_lr: 1.0e-3
+
+train:
+  epochs: 20
+  batch_size: 32
+  weight_decay: 1.0e-4
+  grad_clip: 1.0
