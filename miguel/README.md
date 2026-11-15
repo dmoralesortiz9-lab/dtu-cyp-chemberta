@@ -10,12 +10,12 @@ copiarlo encima (ver más abajo).
 |---|---|
 | `models/chemberta.py` | Versión ampliada del modelo: cuatro cambios y dos ajustes nuevos |
 | `conf/model/chemberta.yaml` | Su configuración |
-| `batch.sh`, `batch_lr.sh`, `batch_lr_full.sh`, `batch_seeds.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
+| `batch.sh`, `batch_lr.sh`, `batch_lr_full.sh`, `batch_seeds.sh`, `batch_grid.sh` | Lanzan varios entrenamientos dentro de un mismo trabajo de la cola |
 | `figuras-informe/` | Las figuras separadas en `cuerpo/` (la que va en el informe) y `apendice/`, con el orden sugerido en `LEEME.md` |
 | `probe_chemberta.py`, `probe_pooling.py` | Comprobaciones sueltas sobre el modelo y el pooling |
-| `figuras/` | Seis figuras para el informe, en PDF y PNG, con el script que las genera |
+| `figuras/` | Seis figuras, una por pregunta: curvas y contraste juntos, con el $p$ dentro del panel de curvas. PDF, PNG y el script |
 | `informe/` | `parte4-chemberta-resultados.pdf`: el registro completo de experimentos |
-| `resultados/` | Métricas e historiales de las 106 ejecuciones, y `resumen_runs.csv` |
+| `resultados/` | Métricas e historiales de las 112 ejecuciones, y `resumen_runs.csv` |
 
 ## Cambios respecto a `models/chemberta.py` de la raíz
 
@@ -63,6 +63,17 @@ donde se indique. Detalle completo en `informe/` y en `resultados/resumen_runs.c
   regresión ($p=0{,}070$). *Corrige una conclusión anterior:* con una sola semilla
   parecían empatar, porque la semilla 42 le dio a `mtr_mean` un 0,292 en
   clasificación que resultó ser su mejor tirada de tres (media real 0,224).
+- **Los dos factores interactúan, y está medido.** Con la rejilla 2×2 completa a
+  3 semillas, el efecto del pooling **cambia de signo** según el checkpoint:
+
+  | | con MTR | con MLM |
+  |---|---|---|
+  | CLS vs mean (regresión) | +0,018 | **−0,096** ($p=0{,}008$) |
+  | CLS vs mean (clasificación) | +0,068 ($p=0{,}032$) | **−0,046** ($p=0{,}062$) |
+
+  Por eso se cruzaron en vez de fijar uno: con `pooling=cls` la diferencia entre
+  checkpoints sale +0,181, y con la media +0,067. La primera mezcla el efecto del
+  checkpoint con el perjuicio de usar un token que MLM nunca entrenó.
 
 Se descartaron, con medidas: la aleatorización de SMILES (3 semillas y 60 épocas,
 sin efecto), elegir el umbral del MCC (ninguna regla supera al 0,5 fijo) y `concat`
@@ -157,5 +168,5 @@ validación y test. **No lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni lo
 `split.csv`, que son idénticos en todas. Con lo que hay se regeneran las figuras y
 se comprueba cualquier número del informe.
 
-`resultados/resumen_runs.csv` tiene las 106 ejecuciones en una tabla, con su
+`resultados/resumen_runs.csv` tiene las 112 ejecuciones en una tabla, con su
 configuración y sus notas de validación y test.

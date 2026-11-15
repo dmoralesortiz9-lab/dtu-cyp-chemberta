@@ -291,6 +291,7 @@ Configuración & 1 semilla (s42) & \textbf{3 semillas} & 1 semilla (s42) & \text
 MTR + \var{cls} (elegida) & 0.741 & \textbf{0.732 $\pm$ 0.006} & 0.273 & \textbf{0.292 $\pm$ 0.021} \\
 MTR + \var{mean}          & 0.753 & 0.750 $\pm$ 0.010 & \textbf{0.292} & 0.224 $\pm$ 0.028 \\
 MLM + \var{cls}           & 0.905 & 0.914 $\pm$ 0.004 & 0.142 & 0.148 $\pm$ 0.022 \\
+MLM + \var{mean}          & 0.833 & 0.817 $\pm$ 0.017 & 0.120 & 0.194 $\pm$ 0.022 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -309,6 +310,14 @@ MLM + \var{cls}           & 0.905 & 0.914 $\pm$ 0.004 & 0.142 & 0.148 $\pm$ 0.02
   \item \textbf{Y encaja con la explicación del CLS:} si la cabeza de preentrenamiento del MTR leía
         ese token, lo esperable era que \var{cls} ganase a promediar. Con una semilla no se veía; con
         tres, sí. \textbf{La teoría predecía el resultado antes de medirlo bien.}
+  \item \textbf{La interacción está medida, no supuesta.} Con la rejilla completa, el efecto del
+        \var{pooling} \emph{cambia de signo} según el \emph{checkpoint}: con MTR, \var{cls} gana a
+        la media ($+0.018$ reg., $+0.068$ clas.); con MLM, la pierde ($-0.096$, $p=0.008$ reg.;
+        $-0.046$, $p=0.062$ clas.). Es la misma inversión en las dos tareas.
+        \textbf{Esto justifica haber cruzado los dos factores en~A en vez de fijar uno}: con
+        \var{pooling} fijado a \var{cls}, la diferencia entre \emph{checkpoints} sale $+0.181$, y con
+        la media $+0.067$ --- la primera mezcla el efecto del \emph{checkpoint} con el perjuicio de
+        usar un token que MLM nunca entrenó.
 \end{itemize}
 \end{concl}
 
@@ -448,110 +457,80 @@ anotado porque es información, no porque cambie la configuración.
 \newpage
 \section{Figuras}
 
-Pensadas para el informe final. \textbf{Las imágenes no llevan pie dentro}: el pie va aquí, en
-\var{\textbackslash caption}, para que LaTeX las numere y el texto pueda citarlas con
-\var{\textbackslash ref}. Los títulos de los paneles dicen qué se representa, no qué concluimos. Se
-regeneran con \var{figuras/hacer\_figuras.py}, que lee \var{runs/}.
+Una figura por pregunta, en el orden en que el informe las cuenta. \textbf{Las imágenes no llevan pie
+dentro}: el pie va aquí, en \var{\textbackslash caption}, para que LaTeX las numere y el texto pueda
+citarlas con \var{\textbackslash ref}. Los títulos de los paneles dicen qué se representa, no qué
+concluimos. En todas: curvas a la izquierda (media de 3 semillas, banda $\pm$1 desviación) y el
+contraste que las zanja a la derecha, con el $p$ repetido dentro del panel de curvas para que cada
+panel se lea solo. Se regeneran con \var{figuras/hacer\_figuras.py}, que lee \var{runs/}.
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{fig7_contrasts.pdf}
-  \caption{\textbf{Todas las decisiones de diseño, con su intervalo de confianza del 95\,\%}
-  (experimentos~A--G). Cada contraste cambia un solo ajuste respecto a la configuración elegida
-  (MTR, CLS, cuerpo sin congelar, sin aleatorizar, \var{encoder\_lr} 1e-5), con tres semillas de
-  entrenamiento por lado. El efecto se expresa de modo que un valor positivo significa que la opción
-  elegida es mejor, en las dos tareas. Marcador relleno: diferencia significativa ($p<0.05$, $t$ de
-  Welch); hueco: no significativa. Solo el \emph{checkpoint} separa claramente su intervalo del cero
-  en las dos tareas; el \var{pooling} lo hace en clasificación. Las otras tres decisiones quedan
-  dentro de la variación entre semillas: \textbf{no es que no se exploraran, es que se midieron y no
-  cambian nada}.}
-  \label{fig:contrasts}
+  \includegraphics[width=\linewidth]{fig1_checkpoint_pooling.pdf}
+  \caption{\textbf{\emph{Checkpoint} y \var{pooling}, cruzados} (experimentos~A y~G). Las cuatro
+  combinaciones, con el cuerpo sin congelar. Marcador relleno: $p<0.05$; hueco: no significativo.
+  \textbf{El efecto del \var{pooling} cambia de signo según el \emph{checkpoint}}: con MTR, CLS gana a
+  la media; con MLM, la pierde ($-0.096$, $p=0.008$ en regresión). Por eso los dos factores se
+  cruzaron en vez de fijar uno: con \var{pooling} fijado a CLS, la diferencia entre \emph{checkpoints}
+  sale de $+0.181$, y con la media de $+0.067$; la primera mezcla el efecto del \emph{checkpoint} con
+  el perjuicio de usar CLS en un modelo que nunca entrenó ese token.}
+  \label{fig:grid}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{fig8_lr_curve.pdf}
-  \caption{\textbf{Curva del \emph{learning rate} del cuerpo} (experimento~F; MTR + CLS, sin
-  congelar), tres semillas por punto. Línea: media; banda: $\pm$1 desviación; banda vertical clara:
-  la meseta donde el resultado no cambia; círculo negro: el valor elegido. El eje horizontal es
-  logarítmico. Entre 1e-6 y 3e-4 las medias caen dentro de $\pm$0.007 y ningún contraste se acerca al
-  umbral, mientras que en 1e-3 el entrenamiento se degrada en las dos tareas. El barrido cubre tres
-  órdenes de magnitud y llega hasta romper el modelo, que es lo que muestra que la meseta es un
-  resultado y no falta de resolución.}
-  \label{fig:lrcurve}
+  \includegraphics[width=\linewidth]{fig2_learning_rate.pdf}
+  \caption{\textbf{\emph{Learning rate} del cuerpo} (experimento~F; MTR + CLS, sin congelar), seis
+  valores con tres semillas cada uno. (a, c) una curva por valor, en una escala de claro a oscuro
+  porque el \emph{learning rate} está ordenado; discontinuas los dos extremos. (b, d) la curva del
+  \emph{learning rate}: banda $\pm$1 desviación, franja clara la meseta, círculo negro el valor
+  elegido. Entre 1e-6 y 3e-4 las medias caen dentro de $\pm$0.007 y ningún contraste se acerca al
+  umbral; en 1e-3 el entrenamiento se degrada. \textbf{El barrido llega hasta romper el modelo, que es
+  lo que muestra que la meseta es un resultado y no falta de resolución.}}
+  \label{fig:lr}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{fig1_pretraining_objective.pdf}
-  \caption{\textbf{Efecto del objetivo de preentrenamiento} (experimento~A). Pérdida de entrenamiento
-  (a, c) y nota de validación (b, d) por época, para los dos \emph{checkpoints} publicados de
-  ChemBERTa-2 y un control sin preentrenar, con \var{pooling} fijado a CLS y el cuerpo sin congelar.
-  El control usa la misma arquitectura con pesos al azar. Las curvas de validación se muestran crudas
-  (traslúcidas) bajo una media móvil de tres épocas; los marcadores señalan la época elegida por
-  validación. MTR llega a una pérdida menor y a una nota mejor que MLM en las dos tareas, mientras que
-  el control se queda en el nivel de predecir la media (MA-ST-RAE $\approx 1$) y de decir que no a
-  todo (MCC $= 0$).}
-  \label{fig:pretraining}
-\end{figure}
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=\linewidth]{fig2_pooling.pdf}
-  \caption{\textbf{Efecto del \emph{pooling}, por \emph{checkpoint}} (experimento~A). Nota de
-  validación por época para las tres formas de reducir la secuencia de tokens a un vector: el token
-  CLS, la media sobre los tokens reales y la concatenación de ambos. La escala vertical se comparte
-  dentro de cada fila, así que los dos \emph{checkpoints} se pueden comparar directamente. El
-  \emph{pooling} importa con MLM, donde CLS es la peor opción, y las tres alternativas quedan dentro
-  del ruido entre sí con MTR.}
-  \label{fig:pooling}
-\end{figure}
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=\linewidth]{fig3_frozen_vs_finetuned.pdf}
-  \caption{\textbf{Cuerpo congelado frente a afinado} (experimento~B; MTR, \var{pooling} CLS). La
-  ejecución congelada entrena solo la cabeza. Su pérdida de entrenamiento es la menor de las dos
-  porque congelar el cuerpo también desactiva su \var{dropout}, así que comparar los paneles (a) y (c)
-  no es comparar lo mismo; los de validación, (b) y (d), sí. Los dos protocolos terminan dentro de la
-  dispersión entre semillas del otro, con una quinta parte del cómputo.}
+  \includegraphics[width=\linewidth]{fig3_frozen.pdf}
+  \caption{\textbf{Cuerpo congelado frente a afinado} (experimentos~B y~D; MTR + CLS). La ejecución
+  congelada entrena solo la cabeza. Las bandas se solapan de principio a fin y el intervalo del
+  contraste cruza el cero en las dos tareas: \textbf{la diferencia, de haberla, es menor que la
+  variación entre semillas}, y congelar cuesta cinco veces menos cómputo.}
   \label{fig:frozen}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\linewidth]{fig4_augmentation.pdf}
-  \caption{\textbf{Aleatorización de SMILES} (experimento~D). Nota de validación por época con y sin
-  reescribir cada molécula como un SMILES distinto y igualmente válido en cada época; la
-  aleatorización se aplica solo al conjunto de entrenamiento. Línea: media de tres semillas; banda:
-  $\pm$1 desviación. Las bandas se solapan de principio a fin, y en las épocas elegidas la diferencia
-  no es significativa ($p = 0.13$ en regresión y $p = 0.26$ en clasificación).}
-  \label{fig:augmentation}
+  \caption{\textbf{Aleatorización de SMILES} (experimentos~D y~E; MTR + CLS). Cada época reescribe la
+  molécula como un SMILES distinto y igualmente válido, solo en entrenamiento. Es una técnica
+  exclusiva de los modelos de texto: Atom-JEPA no puede aplicarla. Las bandas se solapan y el contraste
+  cruza el cero en las dos tareas.}
+  \label{fig:aug}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{fig5_validation_to_test.pdf}
+  \includegraphics[width=\linewidth]{fig5_per_endpoint.pdf}
+  \caption{\textbf{Comportamiento por enzima de la configuración elegida}: regresión (a--d) y
+  clasificación (e--f). La escala vertical se comparte dentro de cada fila; la línea de puntos marca
+  el predictor de la media, así que cualquier curva por encima predice peor que predecir siempre la
+  media. Las dos enzimas con más moléculas etiquetadas, CYP3A4 y CYP2C9, sostienen el resultado;
+  CYP1A2 y CYP2D6 se quedan en el predictor de la media o por encima durante casi toda la ejecución.}
+  \label{fig:perendpoint}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig6_validation_to_test.pdf}
   \caption{\textbf{De validación a test} para los tres modelos, cada uno evaluado una sola vez en test
   después de cerrar su configuración por validación. ChemBERTa es la media de tres semillas. El orden
   se mantiene en regresión y se invierte en clasificación, donde ChemBERTa cae 0.108 frente a 0.028 de
-  Atom-JEPA. La configuración de ChemBERTa se eligió comparando unas 64 ejecuciones en validación,
+  Atom-JEPA. La configuración de ChemBERTa se eligió comparando más de cien ejecuciones en validación,
   mientras que Atom-JEPA y LightGBM se lanzaron una vez con sus ajustes por defecto, así que su cifra
   de validación está inflada en una cantidad que los otros dos no arrastran.}
   \label{fig:valtest}
-\end{figure}
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=\linewidth]{fig6_per_endpoint.pdf}
-  \caption{\textbf{Comportamiento por enzima de la configuración elegida} (MTR, CLS, sin congelar,
-  semilla 1): regresión (a--d) y clasificación (e--f). La escala vertical se comparte dentro de cada
-  fila; la línea de puntos marca el predictor de la media, así que cualquier curva por encima predice
-  peor que predecir siempre la media. Los marcadores dan el valor por enzima en la época elegida con
-  la nota agregada. Las dos enzimas con más moléculas etiquetadas, CYP3A4 y CYP2C9, sostienen el
-  resultado; CYP1A2 y CYP2D6 se quedan en el predictor de la media o por encima durante casi toda la
-  ejecución.}
-  \label{fig:perendpoint}
 \end{figure}
 
 \end{document}

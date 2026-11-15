@@ -1,89 +1,85 @@
 # Figuras para el informe (Parte 4 — ChemBERTa-2)
 
-Dos carpetas, según dónde va cada figura. Todas en PDF (vectorial, para LaTeX) y
-en PNG (para ver de un vistazo). Ninguna lleva pie dentro de la imagen: los pies
-están abajo, listos para `\caption{}`.
+Una figura por pregunta, en el orden en que se cuentan. Todas en PDF (vectorial,
+para LaTeX) y PNG (para mirarlas). **Ninguna lleva pie dentro de la imagen**: los
+pies están en `../parte4-chemberta-resultados.tex`, listos para `\caption{}`.
 
 ```
-cuerpo/     la figura que va en el informe de 4 páginas (solo cabe una)
-apendice/   las seis que respaldan lo que dice el texto
+cuerpo/     la figura que iría en el informe si cabe alguna
+apendice/   las cinco restantes
 ```
+
+**Ojo con el límite:** las diapositivas de la semana 1 dicen *«Report: max 4 page
++ reference and code»*. **No mencionan apéndice.** Conviene preguntar a los
+supervisores si se permite; si no, la salida segura es dejar las figuras en el
+repositorio (que sí cuenta como «código») y citarlas desde el texto.
 
 ## El orden en que contarlo
 
-Lo que se hizo y el orden en que se cuenta **no son lo mismo**. Los experimentos
-se hicieron en el orden en que fueron surgiendo las dudas; el informe se escribe
-en el orden que mejor lo explica. En 4 páginas no hay sitio para suspense: el
-hallazgo va primero y lo demás lo respalda.
+Lo que se hizo y el orden en que se cuenta no son lo mismo. Los experimentos
+salieron según iban apareciendo las dudas; el informe va en el orden que mejor lo
+explica. Cada paso fija una cosa y pasa a la siguiente.
 
-### Cuerpo del informe (≈1 página, 1 figura)
+| Paso | Pregunta | Respuesta | Figura |
+|---|---|---|---|
+| 1 | ¿Qué *checkpoint* y qué *pooling*? | **MTR + CLS.** Único efecto grande, y los dos factores **interactúan** | `fig1` |
+| 2 | ¿Importa el *learning rate*? | **No**, en tres órdenes de magnitud | `fig2` |
+| 3 | ¿Congelar el cuerpo? | **Da igual**, y cuesta 5 veces menos | `fig3` |
+| 4 | ¿Aleatorizar los SMILES? | **No ayuda** | `fig4` |
+| 5 | ¿De dónde sale el resultado? | De CYP3A4 y CYP2C9, las que más datos tienen | `fig5` |
+| 6 | Comparación final | Gana al *baseline*, pierde contra Atom-JEPA | `fig6` + tabla |
 
-| Párrafo | Qué dice | Apoyo |
+En los pasos 2–4 la respuesta es «da igual», y por eso **cada figura lleva el
+$p$ dentro del panel de curvas**, no solo en el panel del contraste: quien mire
+las curvas no tiene que irse al panel de al lado para saber si la separación que
+ve es real.
+
+## Por qué el paso 1 es una rejilla y los demás no
+
+Cruzar todo sería inviable: 2 *checkpoints* × 3 *pooling* × 2 (congelar) ×
+6 *learning rates* × 2 (aleatorizar) = 144 configuraciones, por 3 semillas y
+2 tareas son 864 ejecuciones.
+
+Se cruzan **solo los dos factores que pueden interactuar**, y de hecho interactúan:
+
+| | con MTR | con MLM |
 |---|---|---|
-| **1. Qué modelo y por qué** | ChemBERTa-2, checkpoint `DeepChem/ChemBERTa-77M-MTR`. Lee el SMILES como texto, sin geometría 3D: ahí está el contraste con Atom-JEPA. *El enunciado pide decir explícitamente qué checkpoint se usa.* | — |
-| **2. El hallazgo: lo único que importa es el checkpoint** | MTR gana a MLM en las dos tareas y con los tres *pooling*. **Y por qué:** la cabeza de preentrenamiento del MTR (`dense` 384→384 + `out_proj` 384→199) leía únicamente el token CLS, así que el cuerpo quedó obligado a escribir ahí un resumen. En MLM la tarea leía el vector de cada posición tapada, y el CLS no se usó nunca. | Fig. A1 (apéndice) |
-| **3. Todo lo demás se midió y no cambia nada** | *Pooling*, congelar el cuerpo, *learning rate* y aleatorización de SMILES: ninguna diferencia supera la variación entre semillas. | **Figura del cuerpo** |
-| **4. Resultado y límite** | Tabla final. Gana al *baseline*, pierde contra Atom-JEPA. Leer la molécula como texto iguala a unas *features* hechas a mano, pero no sustituye a ver la geometría 3D. | Fig. A5 (apéndice) |
+| CLS vs media (regresión) | **+0,018** (CLS mejor) | **−0,096** (CLS peor), $p=0{,}008$ |
+| CLS vs media (clasificación) | **+0,068**, $p=0{,}032$ | **−0,046**, $p=0{,}062$ |
 
-### Por qué este orden y no el cronológico
+**El efecto del *pooling* cambia de signo según el *checkpoint*.** Si se hubiera
+fijado `pooling=cls` y comparado *checkpoints*, la diferencia habría salido
+$+0{,}181$ en vez de $+0{,}067$: mezclaría el efecto del *checkpoint* con el
+perjuicio de usar un token que MLM nunca entrenó.
 
-El orden en que se hizo fue: rejilla checkpoint × *pooling* → congelar → umbral
-→ aleatorizar → 60 épocas → *learning rate* → semillas que faltaban. Contado así,
-el lector llega al final sin saber qué importa.
+Los factores de entrenamiento (congelar, *learning rate*, aleatorizar) se
+exploran **sobre la configuración ya elegida**, porque actúan sobre un modelo
+fijado. Se comprobó además que el *learning rate* tampoco se traslada entre
+*checkpoints*: con MLM vale 0,071 y con MTR no vale nada.
 
-Contado como arriba, la pregunta «¿y no será que no lo ajustasteis bien?» queda
-respondida **antes** de que se la haga: el párrafo 3 enseña cuatro cosas medidas y
-descartadas, no cuatro cosas sin explorar.
+## Frases que conviene que estén tal cual
 
-Una frase que conviene que aparezca tal cual, porque es la lectura honesta de la
-figura del cuerpo: **las diferencias, de haberlas, son menores que la variación
-entre semillas**. Con tres semillas solo se detectan efectos grandes; que salga
-$p = 0{,}21$ no prueba que no haya diferencia, prueba que si la hay es más pequeña
-que lo que este experimento puede ver.
+> «Las diferencias, de haberlas, son menores que la variación entre semillas.»
 
-## Las figuras
+Con tres semillas solo se detectan efectos grandes. Que salga $p = 0{,}21$ **no
+prueba que no haya diferencia**, prueba que si la hay es más pequeña de lo que
+este experimento puede ver.
 
-### `cuerpo/fig7_contrasts.pdf`
+> «Los dos factores se cruzaron porque pueden interactuar, y de hecho interactúan:
+> el efecto del *pooling* cambia de signo según el *checkpoint* ($p = 0{,}008$).»
 
-**Las cinco comparaciones con su intervalo de confianza.** Cada una cambia una sola
-cosa respecto a la configuración elegida. El efecto está firmado de modo que
-positivo siempre significa «la opción elegida es mejor», en las dos tareas. Punto
-relleno = significativo al 5 %; hueco = no. La línea de puntos marca el cero.
+> «Se barrieron tres órdenes de magnitud en el *learning rate*, con tres semillas
+> por punto; el modelo es insensible entre 1e-6 y 3e-4 y se degrada fuera.»
 
-Pie sugerido:
-
-> **Figura N. Todas las decisiones de diseño, con su intervalo de confianza del
-> 95 %.** Cada contraste cambia un solo ajuste respecto a la configuración elegida
-> (MTR, CLS, cuerpo sin congelar, sin aleatorizar, `encoder_lr` 1e-5), con tres
-> semillas de entrenamiento por lado. El efecto se expresa de modo que un valor
-> positivo significa que la opción elegida es mejor, en las dos tareas. Marcador
-> relleno: diferencia significativa ($p < 0{,}05$, $t$ de Welch); hueco: no
-> significativa. Solo el *checkpoint* separa su intervalo del cero; las otras
-> cuatro decisiones quedan dentro de la variación entre semillas.
-
-### `apendice/`
-
-| Archivo | Qué enseña | Se cita en |
-|---|---|---|
-| `figA1_pretraining_objective` | MLM vs MTR vs sin preentrenar, curvas por época | Párrafo 2 |
-| `figA2_pooling` | CLS vs media vs concatenación, por *checkpoint* | Párrafo 3 |
-| `figA3_frozen_vs_finetuned` | Cuerpo congelado vs afinado | Párrafo 3 |
-| `figA4_augmentation` | Aleatorización de SMILES, 3 semillas con banda | Párrafo 3 |
-| `figA5_validation_to_test` | Los tres modelos, de validación a test | Párrafo 4 |
-| `figA6_per_endpoint` | Comportamiento por enzima | Párrafo 4 |
-
-Los pies de todas están en `../figuras/figuras.tex`, listos para copiar.
-
-## Cómo citarlas desde el texto
+## Cómo citarlas
 
 ```latex
-% en el preámbulo
 \usepackage{graphicx}
 \graphicspath{{figuras-informe/cuerpo/}{figuras-informe/apendice/}}
-
-% en el texto
-... ninguna supera la variación entre semillas (Fig.~\ref{fig:contrasts}),
-y el detalle de cada una está en el apéndice (Figs.~\ref{fig:pooling}--\ref{fig:aug}).
+...
+El efecto del pooling se invierte según el checkpoint (Fig.~\ref{fig:grid}).
+Ninguna de las decisiones de entrenamiento supera la variación entre semillas
+(Figs.~\ref{fig:lr}--\ref{fig:aug}).
 ```
 
 ## Regenerarlas
@@ -93,4 +89,4 @@ cd dtu-cyp-project
 python ../figuras/hacer_figuras.py      # escribe en ../figuras/
 ```
 
-Lee `runs/`, así que hace falta tenerlo. Luego se copian a estas dos carpetas.
+Lee `runs/`. Luego se copian a estas dos carpetas.
