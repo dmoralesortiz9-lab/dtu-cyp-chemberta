@@ -5,8 +5,15 @@ para LaTeX) y PNG (para mirarlas en GitHub, que no previsualiza PDF). **Ninguna
 lleva pie dentro de la imagen**: los pies están en
 `../informe/parte4-chemberta-resultados.tex`, listos para `\caption{}`.
 
-Las seis van al **apéndice** del informe; el cuerpo (máx. 4 páginas) no lleva
-ninguna.
+Las siete van al **apéndice** del informe; el cuerpo (máx. 4 páginas) no lleva
+ninguna. En el apéndice `fig7` va **la primera**, porque es la que justifica el
+protocolo de tres semillas y la cita la sección de metodología.
+
+`fig7_training_curves` es el equivalente del `plot_curves.py` de la raíz del
+repositorio, dibujado con nuestras ejecuciones y tres semillas: pérdida de
+entrenamiento frente a métrica de validación, para el punto de partida, el mejor
+MLM y la configuración elegida. Es la única figura que enseña la pérdida de
+entrenamiento.
 
 ## El orden en que contarlo
 
@@ -16,6 +23,7 @@ explica. Cada paso fija una cosa y pasa a la siguiente.
 
 | Paso | Pregunta | Respuesta | Figura |
 |---|---|---|---|
+| 0 | ¿Por qué tres semillas? | La pérdida baja lisa y la validación rebota | `fig7` |
 | 1 | ¿Qué *checkpoint* y qué *pooling*? | **MTR + CLS.** Único efecto grande, y los dos factores **interactúan** | `fig1` |
 | 2 | ¿Importa el *learning rate*? | **No**, en tres órdenes de magnitud | `fig2` |
 | 3 | ¿Congelar el cuerpo? | **Da igual**, y cuesta 5 veces menos | `fig3` |

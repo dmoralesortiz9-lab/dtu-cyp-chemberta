@@ -66,7 +66,7 @@ molecule, either the \texttt{CLS} token or the mask-weighted
 \subsection{Methodology}
 
 The validation metric fluctuates between epochs while the training loss
-falls smoothly (Fig.~\ref{fig:grid}a), and the training loop keeps the
+falls smoothly (Fig.~\ref{fig:curves}), and the training loop keeps the
 best epoch by validation, so it selects the minimum of a noisy series.
 A single run is therefore not a measurement. We ran every configuration
 behind a decision with \textbf{three training seeds} and compare them
@@ -79,7 +79,7 @@ end.
 
 \begin{table}[t]
   \centering
-  \caption{Step 1. Checkpoint $\times$ pooling on validation, encoder
+  \caption{Checkpoint $\times$ pooling on validation, encoder
   fine-tuned, three seeds. The winning row is significant against every
   other on both tasks.}
   \label{tab:grid}
@@ -100,7 +100,7 @@ end.
   \end{tabular}
 \end{table}
 
-\subsection{Step 1: which checkpoint, and which summary vector}
+\subsection{Pretraining objective and sequence pooling}
 
 The first decision is the checkpoint, and it cannot be taken alone. The
 pooling determines \emph{which} vector the readout sees, and the two
@@ -138,8 +138,8 @@ which is the premise the rest of the section rests on.
 
 \begin{table}[t]
   \centering
-  \caption{Step 2. Each row changes one setting against the
-  configuration chosen in Step~1. Three seeds; Welch $p$ on validation.
+  \caption{Each row changes one setting against the selected
+  configuration. Three seeds; Welch $p$ on validation.
   None is significant.}
   \label{tab:robust}
   \small
@@ -156,10 +156,10 @@ which is the premise the rest of the section rests on.
   \end{tabular}
 \end{table}
 
-\subsection{Step 2: how to adapt it}
+\subsection{Adaptation protocol}
 
 With the model fixed, three questions remain about \emph{how} to train
-it. We tested them one at a time against the configuration from Step~1,
+it. We tested them one at a time against the configuration selected above,
 again with three seeds (Table~\ref{tab:robust}). None of the three
 changes the result, and the interesting part is how we know.
 
@@ -190,7 +190,7 @@ epochs, which suggests a shortage of data rather than of capacity.
 It does not help (Fig.~\ref{fig:aug}), and the result holds at 60
 epochs as well as 20.
 
-Taken together, Step~2 says that \textbf{once the checkpoint is right,
+Taken together, these say that \textbf{once the checkpoint is right,
 the adaptation protocol barely matters}. That is itself the useful
 finding: MLM arrives encoding structure and needs substantial
 adaptation, MTR already encodes properties and needs very little.
@@ -250,6 +250,17 @@ Curves are the mean over three training seeds with a $\pm 1$ s.d. band;
 contrasts are Welch tests with 95\% intervals, signed so a positive
 value means the selected option is better. Filled markers are
 significant at the 5\% level, hollow ones are not.
+
+\begin{figure*}[htbp]
+  \centering
+  \includegraphics[width=0.84\textwidth]{fig7_training_curves.pdf}
+  \caption{Training loss (a, c) against validation score (b, d) for the
+  starting configuration, the best MLM model and the selected one.
+  Three seeds each. The loss falls smoothly while the validation metric
+  rebounds, which is why the best epoch by validation is the minimum of
+  a noisy series and a single run is not a measurement.}
+  \label{fig:curves}
+\end{figure*}
 
 \begin{figure*}[htbp]
   \centering

@@ -237,7 +237,7 @@ def fig_grid():
                  ('MTR vs MLM\n(with mean)', 'mtr_mean', 'mlm_mean'),
                  ('CLS vs mean\n(with MTR)', REFERENCE, 'mtr_mean'),
                  ('CLS vs mean\n(with MLM)', 'mlm_cls', 'mlm_mean')]
-    fig, axes = plt.subplots(2, 2, figsize=(6.6, 4.2))
+    fig, axes = plt.subplots(2, 2, figsize=(6.6, 4.9))
     for row, (task, key, lab) in enumerate(TASKS):
         for (name, nom), col, ls in zip(series, (C1, C2, C3, C4), DASH):
             c = seed_curves(task, name, key)
@@ -251,15 +251,10 @@ def fig_grid():
             forest(axes[row, 1], rows, f'Advantage ({lab.split(" $")[0]})')
             axes[row, 1].set_title('Regression' if task == 'regression'
                                    else 'Classification', loc='left', color=INK)
-    # Regression curves rise, classification curves rise then flatten: the free
-    # corner is the lower right in both.
-    for row in (0, 1):
-        axes[row, 0].legend(loc='lower right', ncol=2, fontsize=7.4,
-                            handlelength=1.6, columnspacing=1.0, labelspacing=0.3,
-                            borderpad=0.4, framealpha=1, facecolor=SURFACE,
-                            edgecolor=GRID, frameon=True)
+    # Four series over four panels: an inside legend covered the data, so it goes
+    # on top in a single row and the figure is taller to pay for it.
     panel_tags(axes)
-    fig.tight_layout()
+    legend_on_top(fig, *axes[0, 0].get_legend_handles_labels(), ncol=4)
     save(fig, 'fig1_checkpoint_pooling')
 
 
@@ -410,7 +405,44 @@ def fig_val_test():
     save(fig, 'fig6_validation_to_test')
 
 
+# --- 7. training loss vs validation metric --------------------------------
+# The equivalent of plot_curves.py in the root of the repository, drawn with our
+# runs. It is the only figure showing the training loss, and it is what the
+# methodology section points at: the loss falls smoothly while the validation
+# metric rebounds, so the best epoch is the minimum of a noisy series.
+OVERFIT = [('mlm_cls', 'MLM + CLS (starting point)'),
+           ('mlm_mean', 'MLM + mean (best MLM)'),
+           (REFERENCE, 'MTR + CLS (selected)')]
+
+
+def fig_training_curves():
+    fig, axes = plt.subplots(2, 2, figsize=(6.6, 4.9))
+    for row, (task, key, lab) in enumerate(TASKS):
+        for (name, nom), col, ls in zip(OVERFIT, (C3, C4, C1), (DASH[2], DASH[1], DASH[0])):
+            rows = []
+            for sd in (1, 2, 3):
+                p = RUNS / task / 'chemberta' / f'{name}_s{sd}' / 'history.jsonl'
+                if p.exists():
+                    rows.append([json.loads(l) for l in p.open()])
+            if not rows:
+                continue
+            m = min(len(r) for r in rows)
+            ep = np.array([r['epoch'] for r in rows[0][:m]])
+            loss = np.vstack([[r['train_loss'] for r in run[:m]] for run in rows])
+            val = np.vstack([[r[key] for r in run[:m]] for run in rows])
+            band(axes[row, 0], ep, loss, col, ls, nom)
+            band(axes[row, 1], ep, val, col, ls, nom)
+        tl = 'squared error' if task == 'regression' else 'cross-entropy'
+        nm = 'Regression' if task == 'regression' else 'Classification'
+        frame(axes[row, 0], 'Epoch', f'Training loss ({tl})', nm)
+        frame(axes[row, 1], 'Epoch', f'Validation {lab}', nm)
+    panel_tags(axes)
+    legend_on_top(fig, *axes[0, 0].get_legend_handles_labels(), ncol=3)
+    save(fig, 'fig7_training_curves')
+
+
 if __name__ == '__main__':
     print('Figures written to', OUT)
     fig_grid(); fig_lr(); fig_frozen()
     fig_augmentation(); fig_per_enzyme(); fig_val_test()
+    fig_training_curves()
