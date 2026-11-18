@@ -1,94 +1,95 @@
-# Figuras para el informe (Parte 4 — ChemBERTa-2)
+# Figures for the report (Part 4 — ChemBERTa-2)
 
-Una figura por pregunta, en el orden en que se cuentan. Todas en PDF (vectorial,
-para LaTeX) y PNG (para mirarlas en GitHub, que no previsualiza PDF). **Ninguna
-lleva pie dentro de la imagen**: los pies están en
-`../report/parte4-chemberta-resultados.tex`, listos para `\caption{}`.
+One figure per question, in the order they are told in. Each is provided as PDF
+(vector, for LaTeX) and PNG (to view on GitHub, which does not preview PDFs).
+**No figure carries a caption inside the image**: the captions live in the report
+itself, ready for `\caption{}`, so LaTeX numbers them and the text can cite them
+with `\ref{}`.
 
-Las siete van al **apéndice** del informe; el cuerpo (máx. 4 páginas) no lleva
-ninguna. En el apéndice `fig7` va **la primera**, porque es la que justifica el
-protocolo de tres semillas y la cita la sección de metodología.
+All seven belong in the report's **appendix**; the body (max. 4 pages) carries
+none. In the appendix `fig7` goes **first**, because it is the one that justifies
+the three-seed protocol and the methodology section cites it.
 
-`fig7_training_curves` es el equivalente del `plot_curves.py` de la raíz del
-repositorio, dibujado con nuestras ejecuciones y tres semillas: pérdida de
-entrenamiento frente a métrica de validación, para el punto de partida, el mejor
-MLM y la configuración elegida. Es la única figura que enseña la pérdida de
-entrenamiento.
+`fig7_training_curves` is the equivalent of the root `plot_curves.py`, drawn from
+our runs with three seeds: training loss against validation metric, for the
+starting point, the best MLM model and the selected configuration. It is the only
+figure that shows the training loss.
 
-## El orden en que contarlo
+## The order to tell it in
 
-Lo que se hizo y el orden en que se cuenta no son lo mismo. Los experimentos
-salieron según iban apareciendo las dudas; el informe va en el orden que mejor lo
-explica. Cada paso fija una cosa y pasa a la siguiente.
+What was done and the order it is told in are not the same thing. The experiments
+came out as the questions appeared; the report goes in the order that explains it
+best. Each step fixes one thing and moves on.
 
-| Paso | Pregunta | Respuesta | Figura |
+| Step | Question | Answer | Figure |
 |---|---|---|---|
-| 0 | ¿Por qué tres semillas? | La pérdida baja lisa y la validación rebota | `fig7` |
-| 1 | ¿Qué *checkpoint* y qué *pooling*? | **MTR + CLS.** Único efecto grande, y los dos factores **interactúan** | `fig1` |
-| 2 | ¿Importa el *learning rate*? | **No**, en tres órdenes de magnitud | `fig2` |
-| 3 | ¿Congelar el cuerpo? | **Da igual**, y cuesta 5 veces menos | `fig3` |
-| 4 | ¿Aleatorizar los SMILES? | **No ayuda** | `fig4` |
-| 5 | ¿De dónde sale el resultado? | De CYP3A4 y CYP2C9, las que más datos tienen | `fig5` |
-| 6 | Comparación final | Gana al *baseline*, pierde contra Atom-JEPA | `fig6` + tabla |
+| 0 | Why three seeds? | The loss falls smoothly while validation rebounds | `fig7` |
+| 1 | Which *checkpoint* and which *pooling*? | **MTR + CLS.** The only large effect, and the two factors **interact** | `fig1` |
+| 2 | Does the *learning rate* matter? | **No**, across three orders of magnitude | `fig2` |
+| 3 | Freeze the encoder? | **Makes no difference**, and costs 5× less | `fig3` |
+| 4 | Randomise the SMILES? | **Does not help** | `fig4` |
+| 5 | Where does the result come from? | CYP3A4 and CYP2C9, the ones with the most data | `fig5` |
+| 6 | Final comparison | Beats the *baseline*, loses to Atom-JEPA | `fig6` + table |
 
-En los pasos 2–4 la respuesta es «da igual», y por eso **cada figura lleva el
-$p$ dentro del panel de curvas**, no solo en el panel del contraste: quien mire
-las curvas no tiene que irse al panel de al lado para saber si la separación que
-ve es real.
+In steps 2–4 the answer is "no difference", which is why **every figure carries
+the $p$ value inside the curves panel**, not only in the contrast panel: a reader
+looking at the curves should not have to move to the next panel to learn whether
+the separation they see is real.
 
-## Por qué el paso 1 es una rejilla y los demás no
+## Why step 1 is a grid and the others are not
 
-Cruzar todo sería inviable: 2 *checkpoints* × 3 *pooling* × 2 (congelar) ×
-6 *learning rates* × 2 (aleatorizar) = 144 configuraciones, por 3 semillas y
-2 tareas son 864 ejecuciones.
+Crossing everything was never an option: 2 *checkpoints* × 3 *poolings* ×
+2 (freezing) × 6 *learning rates* × 2 (randomisation) = 144 configurations, which
+over 3 seeds and 2 tasks is 864 runs.
 
-Se cruzan **solo los dos factores que pueden interactuar**, y de hecho interactúan:
+Only **the two factors that can interact** are crossed, and they do interact:
 
-| | con MTR | con MLM |
+| | with MTR | with MLM |
 |---|---|---|
-| CLS vs media (regresión) | **+0,018** (CLS mejor) | **−0,096** (CLS peor), $p=0{,}008$ |
-| CLS vs media (clasificación) | **+0,068**, $p=0{,}032$ | **−0,046**, $p=0{,}062$ |
+| CLS vs mean (regression) | **+0.018** (CLS better) | **−0.096** (CLS worse), $p=0.008$ |
+| CLS vs mean (classification) | **+0.068**, $p=0.032$ | **−0.046**, $p=0.062$ |
 
-**El efecto del *pooling* cambia de signo según el *checkpoint*.** Si se hubiera
-fijado `pooling=cls` y comparado *checkpoints*, la diferencia habría salido
-$+0{,}181$ en vez de $+0{,}067$: mezclaría el efecto del *checkpoint* con el
-perjuicio de usar un token que MLM nunca entrenó.
+**The pooling effect changes sign with the checkpoint.** Had the pooling been
+fixed to `cls` and the checkpoints then compared, the difference would have read
+$+0.181$ instead of $+0.067$: that would confound the checkpoint's effect with
+the penalty of using a token MLM never trained.
 
-Los factores de entrenamiento (congelar, *learning rate*, aleatorizar) se
-exploran **sobre la configuración ya elegida**, porque actúan sobre un modelo
-fijado. Se comprobó además que el *learning rate* tampoco se traslada entre
-*checkpoints*: con MLM vale 0,071 y con MTR no vale nada.
+The training factors (freezing, learning rate, randomisation) are explored **on
+top of the already selected configuration**, because they act on a fixed model.
+The learning rate was also checked not to transfer between checkpoints: on MLM it
+is worth 0.071 and on MTR nothing at all.
 
-## Frases que conviene que estén tal cual
+## Sentences worth keeping verbatim
 
-> «Las diferencias, de haberlas, son menores que la variación entre semillas.»
+> "Any difference there may be is smaller than the variation between seeds."
 
-Con tres semillas solo se detectan efectos grandes. Que salga $p = 0{,}21$ **no
-prueba que no haya diferencia**, prueba que si la hay es más pequeña de lo que
-este experimento puede ver.
+Three seeds detect only large effects. A $p = 0.21$ **does not prove there is no
+difference**; it proves that if there is one, it is smaller than this experiment
+can see.
 
-> «Los dos factores se cruzaron porque pueden interactuar, y de hecho interactúan:
-> el efecto del *pooling* cambia de signo según el *checkpoint* ($p = 0{,}008$).»
+> "The two factors were crossed because they can interact, and they do: the
+> pooling effect changes sign with the checkpoint ($p = 0.008$)."
 
-> «Se barrieron tres órdenes de magnitud en el *learning rate*, con tres semillas
-> por punto; el modelo es insensible entre 1e-6 y 3e-4 y se degrada fuera.»
+> "The learning rate was swept over three orders of magnitude, three seeds per
+> point; the model is insensitive between 1e-6 and 3e-4 and degrades outside it."
 
-## Cómo citarlas
+## How to cite them
 
 ```latex
 \usepackage{graphicx}
 \graphicspath{{figures/}}
 ...
-El efecto del pooling se invierte según el checkpoint (Fig.~\ref{fig:grid}).
-Ninguna de las decisiones de entrenamiento supera la variación entre semillas
+The pooling effect inverts with the checkpoint (Fig.~\ref{fig:grid}).
+None of the training decisions exceeds the variation between seeds
 (Figs.~\ref{fig:lr}--\ref{fig:aug}).
 ```
 
-## Regenerarlas
+## Regenerating them
 
 ```bash
-cd dtu-cyp-project
-python ../figures/make_figures.py      # escribe en ../figures/
+# from the directory that holds runs/, i.e. the starter directory
+python part4/chemberta/miguel/figures/make_figures.py
 ```
 
-Lee `runs/`, así que hace falta tenerlo en la raíz del repo.
+It reads `runs/` from the working directory and writes next to itself, so `runs/`
+has to be there.
