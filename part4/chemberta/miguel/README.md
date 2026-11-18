@@ -4,8 +4,8 @@ Se construye sobre el `models/chemberta.py` que subió Daniel. Nada de esta carp
 pisa archivos de la raíz: para usar el código ampliado hay que copiarlo encima.
 
 ```bash
-cp miguel/models/chemberta.py models/
-cp miguel/conf/model/chemberta.yaml conf/model/
+cp part4/chemberta/miguel/models/chemberta.py models/
+cp part4/chemberta/miguel/conf/model/chemberta.yaml conf/model/
 ```
 
 ## Qué hay
@@ -14,12 +14,12 @@ cp miguel/conf/model/chemberta.yaml conf/model/
 |---|---|
 | `models/chemberta.py` | El modelo ampliado: cuatro arreglos y dos ajustes nuevos |
 | `conf/model/chemberta.yaml` | Su configuración |
-| `figuras/` | Las **6 figuras del apéndice** (PDF + PNG), el script que las genera y `LEEME.md` con el orden en que contarlas |
-| `informe/` | `parte4-chemberta-resultados.pdf`: el registro completo, con las figuras ya integradas |
-| `resultados/` | Configuración, curvas y métricas de las **112 ejecuciones**, y `resumen_runs.csv` con todo en una tabla |
+| `figures/` | Las **6 figuras del apéndice** (PDF + PNG), el script que las genera y `README.md` con el orden en que contarlas |
+| `report/` | `parte4-chemberta-resultados.pdf`: el registro completo, con las figuras ya integradas |
+| `results/` | Configuración, curvas y métricas de las **112 ejecuciones**, y `resumen_runs.csv` con todo en una tabla |
 | `batch*.sh` | Las cinco tandas que se lanzaron, cada una con su porqué en la cabecera |
 
-`resultados/` **no lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni los
+`results/` **no lleva los pesos** (`best.pt`, 1,2 GB entre todos) ni los
 `split.csv`, idénticos en todas. Con lo que hay se regeneran las figuras y se
 comprueba cualquier número del informe.
 

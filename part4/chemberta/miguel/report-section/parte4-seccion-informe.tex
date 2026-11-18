@@ -6,10 +6,10 @@
 % delete the preamble, keep \section{...} onwards, and \input{} this
 % file from main.tex. The appendix block goes in the group appendix.
 %
-% Needs: booktabs, graphicx. Figures live in figuras/ (PDF).
+% Needs: booktabs, graphicx. Figures live in figures/ (PDF).
 %
 % Every number comes from runs stored in the repository under
-% miguel/resultados/: three training seeds per configuration, mean +-
+% part4/chemberta/miguel/results/: three training seeds per configuration, mean +-
 % s.d., two-sided Welch contrasts on validation. One data split
 % (default seed 42) shared by every run.
 % =====================================================================
@@ -23,7 +23,7 @@
 % Keeps each table inside its own step instead of floating them together.
 \usepackage{placeins}
 \setlength{\textfloatsep}{14pt plus 3pt minus 3pt}
-\graphicspath{{figuras/}}
+\graphicspath{{figures/}{../figures/}}
 \setlength{\columnsep}{0.7cm}
 \pagestyle{empty}
 

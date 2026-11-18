@@ -15,11 +15,11 @@ difference" is a claim that needs the measurement next to it. Curves are the mea
 over three training seeds with a +-1 s.d. band; contrasts are Welch tests with 95 %
 intervals, signed so positive always means "the chosen option is better".
 
-Paper style: no caption is drawn inside the image. Captions live in figuras.tex,
+Paper style: no caption is drawn inside the image. Captions live in the report .tex,
 for \\caption{}, so LaTeX numbers them and the text can cite them with \\ref{}.
 Panel titles say what is plotted, never what it means.
 
-    cd ~/dtu-cyp-project && python ~/Proyecto-Deep-Learning/figuras/hacer_figuras.py
+    cd ~/dtu-cyp-project && python ~/Proyecto-Deep-Learning/figures/make_figures.py
 """
 import json
 from pathlib import Path

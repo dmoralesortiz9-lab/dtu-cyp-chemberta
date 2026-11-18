@@ -3,7 +3,7 @@
 Una figura por pregunta, en el orden en que se cuentan. Todas en PDF (vectorial,
 para LaTeX) y PNG (para mirarlas en GitHub, que no previsualiza PDF). **Ninguna
 lleva pie dentro de la imagen**: los pies están en
-`../informe/parte4-chemberta-resultados.tex`, listos para `\caption{}`.
+`../report/parte4-chemberta-resultados.tex`, listos para `\caption{}`.
 
 Las siete van al **apéndice** del informe; el cuerpo (máx. 4 páginas) no lleva
 ninguna. En el apéndice `fig7` va **la primera**, porque es la que justifica el
@@ -77,7 +77,7 @@ este experimento puede ver.
 
 ```latex
 \usepackage{graphicx}
-\graphicspath{{figuras/}}
+\graphicspath{{figures/}}
 ...
 El efecto del pooling se invierte según el checkpoint (Fig.~\ref{fig:grid}).
 Ninguna de las decisiones de entrenamiento supera la variación entre semillas
@@ -88,7 +88,7 @@ Ninguna de las decisiones de entrenamiento supera la variación entre semillas
 
 ```bash
 cd dtu-cyp-project
-python ../figuras/hacer_figuras.py      # escribe en ../figuras/
+python ../figures/make_figures.py      # escribe en ../figures/
 ```
 
 Lee `runs/`, así que hace falta tenerlo en la raíz del repo.
